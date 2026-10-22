@@ -1,0 +1,174 @@
+<!doctype html>
+<!--
+  Syntax-highlighting viewer for fs.0x29a.me. Nginx serves this page at a
+  source file's own URL when a browser asks for HTML (nginx/shared/fs-files.conf);
+  the page then fetches the same URL with `?raw` and highlights it locally.
+  The vendored files beside it are highlight.js 11.12.0 (BSD-3-Clause) from
+  @highlightjs/cdn-assets, unmodified.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fs.0x29a.me</title>
+  <link rel="stylesheet" href="/.fs-viewer/github.min.css" media="(prefers-color-scheme: light)">
+  <link rel="stylesheet" href="/.fs-viewer/github-dark.min.css" media="(prefers-color-scheme: dark)">
+  <style>
+    :root { color-scheme: light dark; --bg: #fff; --fg: #1f2328; --muted: #656d76; --line: #d0d7de; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0d1117; --fg: #e6edf3; --muted: #8d96a0; --line: #30363d; }
+    }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; }
+    header { display: flex; gap: 1rem; align-items: baseline; padding: .6rem 1rem; border-bottom: 1px solid var(--line); }
+    header .path { flex: 1; overflow-wrap: anywhere; font-weight: 600; }
+    header a, .message a { color: var(--muted); }
+    main { display: flex; overflow-x: auto; }
+    pre { margin: 0; padding: .75rem 0; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    #lines { padding: .75rem .75rem; text-align: right; color: var(--muted); user-select: none; border-right: 1px solid var(--line); }
+    #lines a { color: inherit; text-decoration: none; }
+    #lines a:target { color: var(--fg); font-weight: 700; }
+    #code { padding: .75rem 1rem; }
+    pre code.hljs { padding: 0; background: none; }
+    .message { margin: 0; padding: .6rem 1rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="path" id="path"></span>
+    <a id="raw" href="?raw">raw</a>
+    <a id="download" href="?raw" download>download</a>
+  </header>
+  <noscript><p class="message">Highlighting needs JavaScript; open the <a href="?raw">raw file</a> instead.</p></noscript>
+  <p class="message" id="notice" hidden></p>
+  <main id="main">
+    <pre id="lines"></pre>
+    <pre id="code"><code></code></pre>
+  </main>
+  <script src="/.fs-viewer/highlight.min.js"></script>
+  <script src="/.fs-viewer/nginx.min.js"></script>
+  <script src="/.fs-viewer/dockerfile.min.js"></script>
+  <script src="/.fs-viewer/nix.min.js"></script>
+  <script>
+    "use strict";
+
+    // Only this much is read, so a large or mislabeled file never downloads in
+    // full or freezes the tab while highlighting.
+    const READ_LIMIT = 1024 * 1024;
+
+    const LANGUAGES = {
+      py: "python", sh: "bash", bash: "bash", fish: "bash", yml: "yaml", yaml: "yaml",
+      toml: "ini", ini: "ini", js: "javascript", json: "json",
+      rs: "rust", go: "go", c: "c", h: "c", cpp: "cpp", nix: "nix", lua: "lua",
+      sql: "sql", diff: "diff", patch: "diff", md: "markdown",
+      makefile: "makefile", dockerfile: "dockerfile",
+    };
+    // `.conf` covers many formats, so let highlight.js pick among the likely ones.
+    const CONF_CANDIDATES = ["nginx", "ini", "bash"];
+
+    // File names need not be UTF-8; show such a path still percent-encoded.
+    function decode(component) {
+      try {
+        return decodeURIComponent(component);
+      } catch {
+        return component;
+      }
+    }
+
+    const path = location.pathname;
+    const name = decode(path.split("/").pop());
+    const rawUrl = path + "?raw";
+    document.title = name + " · fs.0x29a.me";
+    document.getElementById("path").textContent = decode(path);
+
+    function showNotice(text) {
+      const notice = document.getElementById("notice");
+      notice.textContent = text;
+      notice.hidden = false;
+    }
+
+    async function readRaw() {
+      const response = await fetch(rawUrl);
+      if (!response.ok) throw new Error(response.status + " " + response.statusText);
+      const reader = response.body.getReader();
+      const chunks = [];
+      let size = 0;
+      while (size <= READ_LIMIT) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        size += value.length;
+      }
+      const truncated = size > READ_LIMIT;
+      if (truncated) reader.cancel();
+      const bytes = new Uint8Array(await new Blob(chunks).arrayBuffer()).subarray(0, READ_LIMIT);
+      return { bytes, truncated };
+    }
+
+    // Strict UTF-8 first; anything else is most likely a legacy Western
+    // encoding. A truncated read may end inside a character, which `stream`
+    // drops instead of showing it as a replacement character.
+    function decodeText(bytes, truncated) {
+      try {
+        return new TextDecoder("utf-8", { fatal: true }).decode(bytes, { stream: truncated });
+      } catch {
+        return new TextDecoder("windows-1252").decode(bytes);
+      }
+    }
+
+    function highlight(text, truncated) {
+      const lower = name.toLowerCase();
+      const extension = lower.includes(".") ? lower.split(".").pop() : lower;
+      // A cut-off prefix can end inside a construct; keep it plain.
+      if (truncated) {
+        return hljs.highlight(text, { language: "plaintext" });
+      }
+      if (extension === "conf") {
+        return hljs.highlightAuto(text, CONF_CANDIDATES);
+      }
+      const language = LANGUAGES[extension];
+      // Without ignoreIllegals, one unexpected token leaves the whole file plain.
+      return hljs.highlight(text, {
+        language: hljs.getLanguage(language) ? language : "plaintext",
+        ignoreIllegals: true,
+      });
+    }
+
+    function render(text, truncated) {
+      const lineCount = text.split("\n").length - (text.endsWith("\n") ? 1 : 0);
+      const lines = document.getElementById("lines");
+      for (let number = 1; number <= Math.max(lineCount, 1); number++) {
+        const anchor = document.createElement("a");
+        anchor.id = "L" + number;
+        anchor.textContent = number;
+        anchor.href = "#L" + number;
+        lines.append(anchor, "\n");
+      }
+      const code = document.querySelector("#code code");
+      // highlight.js escapes the source, so its HTML output is safe to insert.
+      code.innerHTML = highlight(text, truncated).value;
+      code.classList.add("hljs");
+      if (location.hash) {
+        document.getElementById(location.hash.slice(1))?.scrollIntoView();
+      }
+    }
+
+    readRaw()
+      .then(({ bytes, truncated }) => {
+        // Text files practically never contain NUL bytes; binary formats do.
+        if (bytes.subarray(0, 8192).includes(0)) {
+          document.getElementById("main").remove();
+          showNotice("This looks like a binary file; use raw or download.");
+          return;
+        }
+        if (truncated) {
+          showNotice("Showing the first 1 MiB; use raw or download for the whole file.");
+        }
+        render(decodeText(bytes, truncated), truncated);
+      })
+      .catch(error => {
+        document.getElementById("main").remove();
+        showNotice("Could not load " + name + ": " + error.message);
+      });
+  </script>
+</body>
+</html>
