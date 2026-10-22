@@ -3,6 +3,8 @@
   Syntax-highlighting viewer for fs.0x29a.me. Nginx serves this page at a
   source file's own URL when a browser asks for HTML (nginx/shared/fs-files.conf);
   the page then fetches the same URL with `?raw` and highlights it locally.
+  The nginx role renders this template from nginx_fs_viewer_extensions and
+  nginx_fs_viewer_file_names, the same declarations that select those URLs.
   The vendored files beside it are highlight.js 11.12.0 (BSD-3-Clause) from
   @highlightjs/cdn-assets, unmodified.
 -->
@@ -55,15 +57,8 @@
     // full or freezes the tab while highlighting.
     const READ_LIMIT = 1024 * 1024;
 
-    const LANGUAGES = {
-      py: "python", sh: "bash", bash: "bash", fish: "bash", yml: "yaml", yaml: "yaml",
-      toml: "ini", ini: "ini", js: "javascript", json: "json",
-      rs: "rust", go: "go", c: "c", h: "c", cpp: "cpp", nix: "nix", lua: "lua",
-      sql: "sql", diff: "diff", patch: "diff", md: "markdown",
-      makefile: "makefile", dockerfile: "dockerfile",
-    };
-    // `.conf` covers many formats, so let highlight.js pick among the likely ones.
-    const CONF_CANDIDATES = ["nginx", "ini", "bash"];
+    const EXTENSIONS = {{ nginx_fs_viewer_extensions | tojson }};
+    const FILE_NAMES = {{ nginx_fs_viewer_file_names | tojson }};
 
     // File names need not be UTF-8; show such a path still percent-encoded.
     function decode(component) {
@@ -115,17 +110,26 @@
       }
     }
 
-    function highlight(text, truncated) {
+    // Nginx matches both declarations case-insensitively.
+    function languageFor(name) {
       const lower = name.toLowerCase();
-      const extension = lower.includes(".") ? lower.split(".").pop() : lower;
+      const extension = lower.includes(".") ? lower.split(".").pop() : "";
+      if (Object.hasOwn(EXTENSIONS, extension)) {
+        return EXTENSIONS[extension];
+      }
+      return FILE_NAMES[Object.keys(FILE_NAMES).find(fileName => fileName.toLowerCase() === lower)];
+    }
+
+    function highlight(text, truncated) {
       // A cut-off prefix can end inside a construct; keep it plain.
       if (truncated) {
         return hljs.highlight(text, { language: "plaintext" });
       }
-      if (extension === "conf") {
-        return hljs.highlightAuto(text, CONF_CANDIDATES);
+      const language = languageFor(name);
+      // A list leaves the choice among those candidates to highlight.js.
+      if (Array.isArray(language)) {
+        return hljs.highlightAuto(text, language);
       }
-      const language = LANGUAGES[extension];
       // Without ignoreIllegals, one unexpected token leaves the whole file plain.
       return hljs.highlight(text, {
         language: hljs.getLanguage(language) ? language : "plaintext",
