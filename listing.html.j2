@@ -1,0 +1,476 @@
+<!doctype html>
+<!--
+  Directory listing for fs.0x29a.me. Nginx serves this page at a directory's
+  own URL when a browser navigates to it (nginx/shared/fs-listing.conf); the
+  page then fetches the same URL with `?json`, nginx's JSON listing, and
+  renders it. `?raw` is nginx's plain listing. The nginx role renders this
+  template with the viewer declarations, so files that open in the
+  syntax-highlighting viewer get its icon.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fs.0x29a.me</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #fff; --fg: #1f2328; --muted: #656d76; --line: #d0d7de; --subtle: #f6f8fa;
+      --accent: #0969da; --folder: #54aeff; --done: #1a7f37;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117; --fg: #e6edf3; --muted: #8d96a0; --line: #30363d; --subtle: #161b22;
+        --accent: #4493f8; --folder: #58a6ff; --done: #3fb950;
+      }
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; }
+    a { color: inherit; }
+    header { display: flex; gap: 1rem; align-items: baseline; padding: .6rem 1rem; border-bottom: 1px solid var(--line); }
+    header > a { color: var(--muted); }
+    .path { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+    .path a { text-decoration: none; }
+    .path a:hover { text-decoration: underline; }
+    .path > * + *::before { content: "/"; margin: 0 .35rem; color: var(--muted); font-weight: 400; }
+    .wrap { max-width: 64rem; margin: 0 auto; padding: 1rem; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: .5rem .75rem; align-items: center; margin-bottom: .75rem; }
+    .toolbar input {
+      flex: 0 1 18rem; min-width: 12rem; padding: .35rem .6rem; font: inherit; color: inherit;
+      background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    }
+    .toolbar input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+    .summary { margin-left: auto; color: var(--muted); font-size: 13px; white-space: nowrap; }
+    .box { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+    .row {
+      display: grid; column-gap: .75rem; align-items: center; padding: .4rem .5rem .4rem .75rem;
+      grid-template-columns: 1.25rem minmax(0, 1fr) 5.5rem 8.5rem 2rem;
+      grid-template-areas: "icon name size mtime copy";
+    }
+    .head { background: var(--subtle); border-bottom: 1px solid var(--line); padding-block: .3rem; font-size: 12px; }
+    .sort { padding: 0; font: inherit; color: var(--muted); background: none; border: 0; cursor: pointer; text-align: inherit; }
+    .sort:hover, .sort[aria-pressed="true"] { color: var(--fg); }
+    .sort[aria-pressed="true"] { font-weight: 600; }
+    .sort[data-order="asc"]::after { content: " ↑"; }
+    .sort[data-order="desc"]::after { content: " ↓"; }
+    .sort[data-key="name"] { grid-area: name; }
+    .sort[data-key="size"] { grid-area: size; text-align: right; }
+    .sort[data-key="mtime"] { grid-area: mtime; }
+    ul { margin: 0; padding: 0; list-style: none; }
+    .entry { position: relative; }
+    .entry + .entry { border-top: 1px solid var(--line); }
+    .entry:hover, .entry:focus-within { background: var(--subtle); }
+    .entry:has(.name:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+    svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .icon { grid-area: icon; color: var(--muted); }
+    .entry[data-kind="folder"] .icon, .entry[data-kind="up"] .icon { color: var(--folder); }
+    .entry[data-kind="folder"] .icon { fill: currentColor; fill-opacity: .2; }
+    .name { grid-area: name; overflow-wrap: anywhere; text-decoration: none; }
+    .name:hover { text-decoration: underline; }
+    .name:focus-visible { outline: none; }
+    /* The whole row opens the entry; the copy button sits above this. */
+    .name::after { content: ""; position: absolute; inset: 0; }
+    .meta { display: contents; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .size { grid-area: size; text-align: right; }
+    .mtime { grid-area: mtime; white-space: nowrap; }
+    .copy {
+      grid-area: copy; position: relative; z-index: 1; display: grid; place-items: center;
+      width: 2rem; height: 2rem; padding: 0; color: var(--muted); background: none;
+      border: 0; border-radius: 6px; cursor: pointer; opacity: 0;
+    }
+    .copy svg { width: 1rem; height: 1rem; }
+    .copy:hover { color: var(--fg); background: var(--line); }
+    .entry:hover .copy, .copy:focus-visible, .copy.done { opacity: 1; }
+    .copy.done { color: var(--done); }
+    @media (hover: none) { .copy { opacity: 1; } }
+    .message { margin: 0; padding: 1.5rem 1rem; color: var(--muted); text-align: center; }
+    .message a { color: var(--muted); }
+    .readme { margin-top: 1rem; }
+    .readme h2 { margin: 0; padding: .45rem .75rem; font-size: 13px; background: var(--subtle); border-bottom: 1px solid var(--line); }
+    .readme pre {
+      margin: 0; padding: .75rem; white-space: pre-wrap; overflow-wrap: anywhere;
+      font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    @media (max-width: 40rem) {
+      header { padding-inline: .75rem; }
+      .wrap { padding: .75rem .5rem; }
+      .toolbar input { flex-grow: 1; }
+      .head { grid-template-columns: repeat(3, auto); grid-template-areas: none; justify-content: start; gap: 1.25rem; }
+      .head .sort { grid-area: auto; }
+      .entry {
+        grid-template-columns: 1.5rem minmax(0, 1fr) 2.25rem; padding-block: .55rem;
+        grid-template-areas: "icon name copy" "icon meta copy";
+      }
+      .entry .icon { width: 1.5rem; height: 1.5rem; }
+      .meta { grid-area: meta; display: flex; gap: .4rem; font-size: 12px; }
+      .size { text-align: left; }
+      .size:empty { display: none; }
+      .size::after { content: "·"; margin-left: .4rem; }
+      .copy { width: 2.25rem; height: 2.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="path" id="path" aria-label="Path"></nav>
+    <a href="?raw">plain</a>
+  </header>
+  <div class="wrap">
+    <noscript><p class="message">This listing needs JavaScript; open the <a href="?raw">plain listing</a> instead.</p></noscript>
+    <div class="toolbar" id="toolbar" hidden>
+      <input id="filter" type="search" placeholder="Filter (press /)" aria-label="Filter by name" autocomplete="off" spellcheck="false">
+      <span class="summary" id="summary" aria-live="polite"></span>
+    </div>
+    <div class="box" id="listing" hidden>
+      <div class="row head">
+        <button class="sort" type="button" data-key="name">Name</button>
+        <button class="sort" type="button" data-key="size">Size</button>
+        <button class="sort" type="button" data-key="mtime">Modified</button>
+      </div>
+      <ul id="entries"></ul>
+      <p class="message" id="empty" hidden></p>
+    </div>
+    <p class="message" id="notice" hidden></p>
+    <section class="box readme" id="readme" hidden>
+      <h2><a id="readme-name"></a></h2>
+      <pre></pre>
+    </section>
+  </div>
+
+  <template id="row">
+    <li class="row entry">
+      <svg class="icon" aria-hidden="true"><use></use></svg>
+      <a class="name"></a>
+      <span class="meta"><span class="size"></span><time class="mtime"></time></span>
+      <button class="copy" type="button"><svg aria-hidden="true"><use href="#i-link"></use></svg></button>
+    </li>
+  </template>
+
+  <svg hidden>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2l2 2.5h8.8A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M10.5 12l-2 2.5 2 2.5M13.5 12l2 2.5-2 2.5"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1.5"/><circle cx="9" cy="9.5" r="1.5"/><path d="M21 15l-5-5-9 10"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M10 9l5 3-5 3z"/></symbol>
+    <symbol id="i-audio" viewBox="0 0 24 24"><path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><path d="M3 4h18v4H3zM4.5 8v11a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V8M10 12h4"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  </svg>
+
+  <script>
+    "use strict";
+
+    // Names that open in the syntax-highlighting viewer, matched like nginx
+    // does: case-insensitively by extension or by exact file name.
+    const EXTENSIONS = {{ nginx_fs_viewer_extensions | list | tojson }};
+    const FILE_NAMES = {{ nginx_fs_viewer_file_names | list | tojson }};
+
+    // Icons only; nginx serves these files like any other.
+    const KINDS = {
+      image: ["avif", "bmp", "gif", "heic", "ico", "jpeg", "jpg", "png", "svg", "webp"],
+      video: ["avi", "m4v", "mkv", "mov", "mp4", "ts", "webm"],
+      audio: ["aac", "flac", "m4a", "mp3", "ogg", "opus", "wav"],
+      archive: ["7z", "bz2", "gz", "iso", "rar", "tar", "tgz", "xz", "zip", "zst"],
+    };
+
+    // A README up to this size is shown below the listing.
+    const README = /^readme(\.(md|txt))?$/i;
+    const README_LIMIT = 64 * 1024;
+
+    const SORT_STORAGE_KEY = "fs-listing-sort";
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+    const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+    const AGE_UNITS = [["year", 31536000], ["month", 2592000], ["week", 604800], ["day", 86400], ["hour", 3600], ["minute", 60]];
+
+    const list = document.getElementById("entries");
+    const filter = document.getElementById("filter");
+    const path = location.pathname;
+    let entries = [];
+    let upRow = null;
+    let sort = { key: "name", order: "asc" };
+
+    // File names need not be UTF-8; show such a path still percent-encoded.
+    function decode(component) {
+      try {
+        return decodeURIComponent(component);
+      } catch {
+        return component;
+      }
+    }
+
+    function showNotice(content) {
+      const notice = document.getElementById("notice");
+      notice.replaceChildren(...content);
+      notice.hidden = false;
+    }
+
+    function plainListingLink(text) {
+      const link = document.createElement("a");
+      link.href = "?raw";
+      link.textContent = text;
+      return link;
+    }
+
+    function renderPath() {
+      const nav = document.getElementById("path");
+      const segments = path.split("/").filter(Boolean);
+      const root = document.createElement("a");
+      root.href = "/";
+      root.textContent = location.host;
+      nav.append(root);
+      segments.forEach((segment, index) => {
+        const last = index === segments.length - 1;
+        const item = document.createElement(last ? "span" : "a");
+        item.textContent = decode(segment);
+        if (last) {
+          item.setAttribute("aria-current", "page");
+        } else {
+          item.href = "/" + segments.slice(0, index + 1).join("/") + "/";
+        }
+        nav.append(item);
+      });
+      document.title = segments.length ? decode(segments.at(-1)) + " · " + location.host : location.host;
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + " B";
+      const units = ["KiB", "MiB", "GiB", "TiB"];
+      let value = bytes / 1024;
+      let unit = 0;
+      while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024;
+        unit++;
+      }
+      return (value < 10 ? value.toFixed(1) : Math.round(value)) + " " + units[unit];
+    }
+
+    function formatAge(time) {
+      const seconds = (time - Date.now()) / 1000;
+      for (const [unit, length] of AGE_UNITS) {
+        if (Math.abs(seconds) >= length) return relative.format(Math.round(seconds / length), unit);
+      }
+      return "just now";
+    }
+
+    function kindOf(entry) {
+      if (entry.isDirectory) return "folder";
+      const lower = entry.name.toLowerCase();
+      const extension = lower.includes(".") ? lower.split(".").pop() : "";
+      if (EXTENSIONS.includes(extension) || FILE_NAMES.some(name => name.toLowerCase() === lower)) {
+        return "code";
+      }
+      return Object.keys(KINDS).find(kind => KINDS[kind].includes(extension)) ?? "file";
+    }
+
+    function createRow(kind, name, href) {
+      const row = document.getElementById("row").content.firstElementChild.cloneNode(true);
+      row.dataset.kind = kind;
+      row.querySelector(".icon use").setAttribute("href", "#i-" + kind);
+      const link = row.querySelector(".name");
+      link.textContent = name;
+      link.href = href;
+      return row;
+    }
+
+    function createEntryRow(entry) {
+      const row = createRow(kindOf(entry), entry.name, entry.href);
+      if (!entry.isDirectory) {
+        row.querySelector(".size").textContent = formatSize(entry.size);
+      }
+      const time = row.querySelector(".mtime");
+      if (!Number.isNaN(entry.mtime)) {
+        const date = new Date(entry.mtime);
+        time.dateTime = date.toISOString();
+        time.title = date.toLocaleString();
+        time.textContent = formatAge(entry.mtime);
+      }
+      const copy = row.querySelector(".copy");
+      copy.setAttribute("aria-label", "Copy link to " + entry.name);
+      copy.title = "Copy link";
+      return row;
+    }
+
+    function compare(a, b) {
+      // Folders stay first in either order.
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+      const direction = sort.order === "asc" ? 1 : -1;
+      let result = 0;
+      if (sort.key === "size" && !a.isDirectory) result = a.size - b.size;
+      if (sort.key === "mtime") result = a.mtime - b.mtime;
+      if (result !== 0) return result * direction;
+      // Ties, and folders by size, stay alphabetical.
+      return collator.compare(a.name, b.name) * (sort.key === "name" ? direction : 1);
+    }
+
+    function applySort() {
+      for (const button of document.querySelectorAll(".sort")) {
+        const active = button.dataset.key === sort.key;
+        button.setAttribute("aria-pressed", active);
+        if (active) {
+          button.dataset.order = sort.order;
+        } else {
+          delete button.dataset.order;
+        }
+      }
+      const rows = [...entries].sort(compare).map(entry => entry.row);
+      list.replaceChildren(...(upRow ? [upRow] : []), ...rows);
+    }
+
+    function applyFilter() {
+      const query = filter.value.trim().toLowerCase();
+      let shown = 0;
+      for (const entry of entries) {
+        entry.row.hidden = !entry.name.toLowerCase().includes(query);
+        if (!entry.row.hidden) shown++;
+      }
+      const empty = document.getElementById("empty");
+      empty.hidden = shown > 0;
+      empty.textContent = entries.length ? "No names match “" + filter.value.trim() + "”." : "This folder is empty.";
+      document.getElementById("summary").textContent = query ? shown + " of " + entries.length + " match" : summary();
+    }
+
+    function summary() {
+      const folders = entries.filter(entry => entry.isDirectory).length;
+      const files = entries.filter(entry => !entry.isDirectory);
+      const parts = [];
+      if (folders) parts.push(folders + (folders === 1 ? " folder" : " folders"));
+      if (files.length) {
+        parts.push(files.length + (files.length === 1 ? " file" : " files"));
+        parts.push(formatSize(files.reduce((total, entry) => total + entry.size, 0)));
+      }
+      return parts.join(" · ");
+    }
+
+    function loadSort() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(SORT_STORAGE_KEY));
+        if (["name", "size", "mtime"].includes(stored?.key) && ["asc", "desc"].includes(stored?.order)) {
+          sort = stored;
+        }
+      } catch {
+        // Storage may be unavailable; the default order applies.
+      }
+    }
+
+    function saveSort() {
+      try {
+        localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(sort));
+      } catch {
+        // Not remembered, but still applied.
+      }
+    }
+
+    async function copyLink(button, href) {
+      try {
+        await navigator.clipboard.writeText(new URL(href, location.href).href);
+      } catch {
+        button.title = "Copying failed";
+        return;
+      }
+      const icon = button.querySelector("use");
+      button.classList.add("done");
+      button.title = "Copied";
+      icon.setAttribute("href", "#i-check");
+      clearTimeout(button.resetTimer);
+      button.resetTimer = setTimeout(() => {
+        button.classList.remove("done");
+        button.title = "Copy link";
+        icon.setAttribute("href", "#i-link");
+      }, 1500);
+    }
+
+    async function showReadme() {
+      const readme = [...entries].sort(compare).find(entry =>
+        !entry.isDirectory && README.test(entry.name) && entry.size <= README_LIMIT);
+      if (!readme) return;
+      const response = await fetch(readme.href + "?raw");
+      if (!response.ok) return;
+      const section = document.getElementById("readme");
+      const name = document.getElementById("readme-name");
+      name.textContent = readme.name;
+      name.href = readme.href;
+      section.querySelector("pre").textContent = await response.text();
+      section.hidden = false;
+    }
+
+    // An expired sign-in redirects to another origin, which the fetch cannot
+    // follow; reloading the page signs in again.
+    async function load() {
+      const response = await fetch(path + "?json");
+      if (!response.ok) throw new Error(response.status + " " + response.statusText);
+      const data = await response.json();
+      if (!Array.isArray(data)) throw new Error("unexpected listing format");
+      return data;
+    }
+
+    renderPath();
+    loadSort();
+
+    load()
+      .then(data => {
+        entries = data.map(item => {
+          const isDirectory = item.type === "directory";
+          const entry = {
+            name: item.name,
+            isDirectory,
+            href: encodeURIComponent(item.name) + (isDirectory ? "/" : ""),
+            size: item.size ?? 0,
+            mtime: Date.parse(item.mtime),
+          };
+          entry.row = createEntryRow(entry);
+          return entry;
+        });
+        if (path !== "/") {
+          upRow = createRow("up", "..", "../");
+          upRow.querySelector(".meta").remove();
+          upRow.querySelector(".copy").remove();
+          upRow.querySelector(".name").setAttribute("aria-label", "Parent folder");
+        }
+        applySort();
+        // A filter the browser restored on back navigation applies again.
+        applyFilter();
+        document.getElementById("toolbar").hidden = false;
+        document.getElementById("listing").hidden = false;
+        showReadme().catch(() => {});
+      })
+      .catch(error => {
+        showNotice(["Could not load this folder (" + error.message + "). Reload the page or open the ",
+          plainListingLink("plain listing"), "."]);
+      });
+
+    document.querySelector(".head").addEventListener("click", event => {
+      const button = event.target.closest(".sort");
+      if (!button) return;
+      const key = button.dataset.key;
+      // Size and date read most usefully largest and newest first.
+      sort = sort.key === key
+        ? { key, order: sort.order === "asc" ? "desc" : "asc" }
+        : { key, order: key === "name" ? "asc" : "desc" };
+      saveSort();
+      applySort();
+    });
+
+    list.addEventListener("click", event => {
+      const button = event.target.closest(".copy");
+      if (button) copyLink(button, button.closest(".entry").querySelector(".name").getAttribute("href"));
+    });
+
+    filter.addEventListener("input", applyFilter);
+    filter.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        filter.value = "";
+        applyFilter();
+      }
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "/" && document.activeElement !== filter && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault();
+        filter.focus();
+      }
+    });
+  </script>
+</body>
+</html>
