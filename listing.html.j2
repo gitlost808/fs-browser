@@ -386,7 +386,9 @@
       const readme = [...entries].sort(compare).find(entry =>
         !entry.isDirectory && README.test(entry.name) && entry.size <= README_LIMIT);
       if (!readme) return;
-      const response = await fetch(readme.href + "?raw");
+      // Files are cached for days, but an edited README must show with the
+      // fresh listing; the revalidation is a 304 while it is unchanged.
+      const response = await fetch(readme.href + "?raw", { cache: "no-cache" });
       if (!response.ok) return;
       const section = document.getElementById("readme");
       const name = document.getElementById("readme-name");
