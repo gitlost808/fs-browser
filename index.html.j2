@@ -38,7 +38,7 @@
   <header>
     <span class="path" id="path"></span>
     <a id="raw" href="?raw">raw</a>
-    <a id="download" href="?raw" download>download</a>
+    <a id="download" href="?download" download>download</a>
   </header>
   <noscript><p class="message">Highlighting needs JavaScript; open the <a href="?raw">raw file</a> instead.</p></noscript>
   <p class="message" id="notice" hidden></p>
@@ -72,6 +72,7 @@
     const path = location.pathname;
     const name = decode(path.split("/").pop());
     const rawUrl = path + "?raw";
+    const downloadUrl = path + "?download";
     document.title = name + " · fs.0x29a.me";
     document.getElementById("path").textContent = decode(path);
 
@@ -161,7 +162,8 @@
         // Text files practically never contain NUL bytes; binary formats do.
         if (bytes.subarray(0, 8192).includes(0)) {
           document.getElementById("main").remove();
-          showNotice("This looks like a binary file; use raw or download.");
+          showNotice("This looks like a binary file. Starting download…");
+          location.replace(downloadUrl);
           return;
         }
         if (truncated) {
