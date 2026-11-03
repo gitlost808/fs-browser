@@ -92,6 +92,32 @@
       margin: 0; padding: .75rem; white-space: pre-wrap; overflow-wrap: anywhere;
       font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
     }
+    /* Image preview: always dark, whatever the page's color scheme. */
+    .preview {
+      width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
+      color: #e6edf3; background: #010409; color-scheme: dark;
+    }
+    .preview[open] { display: flex; flex-direction: column; }
+    .preview::backdrop { background: none; }
+    .preview-bar { display: flex; gap: 1rem; align-items: center; padding: .35rem .5rem .35rem 1rem; }
+    .preview-bar a { color: #8d96a0; }
+    .preview-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+    .preview-count { color: #8d96a0; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .preview button {
+      display: grid; place-items: center; padding: 0; color: inherit; background: none;
+      border: 0; border-radius: 50%; cursor: pointer;
+    }
+    .preview button:hover { background: rgb(255 255 255 / .12); }
+    .preview-close { width: 2.25rem; height: 2.25rem; }
+    .preview-stage { position: relative; flex: 1; min-height: 0; }
+    .preview-stage img { position: absolute; inset: 0 3.5rem 1rem; max-width: calc(100% - 7rem); max-height: calc(100% - 1rem); margin: auto; }
+    .preview-stage[data-state="error"] img { visibility: hidden; }
+    .preview-status { position: absolute; inset: 45% 0 auto; margin: 0; color: #8d96a0; text-align: center; }
+    .preview-stage[data-state="loaded"] .preview-status { display: none; }
+    .preview .preview-step { position: absolute; top: 50%; width: 2.75rem; height: 2.75rem; translate: 0 -50%; background: rgb(255 255 255 / .06); }
+    .preview .preview-step:hover { background: rgb(255 255 255 / .18); }
+    .preview-step[data-step="-1"] { left: .4rem; }
+    .preview-step[data-step="1"] { right: .4rem; }
     @media (max-width: 40rem) {
       header { padding-inline: .75rem; }
       .wrap { padding: .75rem .5rem; }
@@ -108,6 +134,9 @@
       .size:empty { display: none; }
       .size::after { content: "·"; margin-left: .4rem; }
       .copy { width: 2.25rem; height: 2.25rem; }
+      /* The image takes the full width; the step buttons sit on top of it. */
+      .preview-stage img { inset: 0 0 .5rem; max-width: 100%; max-height: calc(100% - .5rem); }
+      .preview .preview-step { background: rgb(0 0 0 / .45); }
     }
   </style>
 </head>
@@ -138,6 +167,22 @@
     </section>
   </div>
 
+  <dialog class="preview" id="preview" aria-label="Image preview">
+    <div class="preview-bar">
+      <span class="preview-name" id="preview-name"></span>
+      <span class="preview-count" id="preview-count"></span>
+      <a id="preview-open">open</a>
+      <a id="preview-download" download>download</a>
+      <button class="preview-close" type="button" data-step="0" aria-label="Close" autofocus><svg aria-hidden="true"><use href="#i-close"></use></svg></button>
+    </div>
+    <div class="preview-stage" id="preview-stage">
+      <p class="preview-status" id="preview-status"></p>
+      <img alt="">
+      <button class="preview-step" type="button" data-step="-1" aria-label="Previous image"><svg aria-hidden="true"><use href="#i-prev"></use></svg></button>
+      <button class="preview-step" type="button" data-step="1" aria-label="Next image"><svg aria-hidden="true"><use href="#i-next"></use></svg></button>
+    </div>
+  </dialog>
+
   <template id="row">
     <li class="row entry">
       <svg class="icon" aria-hidden="true"><use></use></svg>
@@ -158,6 +203,9 @@
     <symbol id="i-archive" viewBox="0 0 24 24"><path d="M3 4h18v4H3zM4.5 8v11a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V8M10 12h4"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   </svg>
 
   <script>
@@ -176,6 +224,10 @@
       archive: ["7z", "bz2", "gz", "iso", "rar", "tar", "tgz", "xz", "zip", "zst"],
     };
 
+    // Formats every current browser shows in an <img>; these open in the
+    // in-page preview, and the others, such as HEIC, keep opening directly.
+    const PREVIEWABLE = ["avif", "bmp", "gif", "ico", "jpeg", "jpg", "png", "svg", "webp"];
+
     // A README up to this size is shown below the listing.
     const README = /^readme(\.(md|txt))?$/i;
     const README_LIMIT = 64 * 1024;
@@ -187,10 +239,15 @@
 
     const list = document.getElementById("entries");
     const filter = document.getElementById("filter");
+    const preview = document.getElementById("preview");
+    const previewStage = document.getElementById("preview-stage");
     const path = location.pathname;
     let entries = [];
     let upRow = null;
     let sort = { key: "name", order: "asc" };
+    // The images the preview steps through, and the one it shows.
+    let gallery = [];
+    let galleryIndex = 0;
 
     // File names need not be UTF-8; show such a path still percent-encoded.
     function decode(component) {
@@ -255,10 +312,15 @@
       return "just now";
     }
 
+    function extensionOf(name) {
+      const lower = name.toLowerCase();
+      return lower.includes(".") ? lower.split(".").pop() : "";
+    }
+
     function kindOf(entry) {
       if (entry.isDirectory) return "folder";
       const lower = entry.name.toLowerCase();
-      const extension = lower.includes(".") ? lower.split(".").pop() : "";
+      const extension = extensionOf(lower);
       if (EXTENSIONS.includes(extension) || FILE_NAMES.some(name => name.toLowerCase() === lower)) {
         return "code";
       }
@@ -398,6 +460,58 @@
       section.hidden = false;
     }
 
+    function showImage(index) {
+      galleryIndex = (index + gallery.length) % gallery.length;
+      const entry = gallery[galleryIndex];
+      const status = document.getElementById("preview-status");
+      previewStage.dataset.state = "loading";
+      status.textContent = "Loading…";
+      // A new element, since an <img> keeps showing its previous image until
+      // a new source has loaded; a large one also renders as it arrives.
+      const image = new Image();
+      image.alt = entry.name;
+      image.addEventListener("load", () => {
+        if (image.isConnected) previewStage.dataset.state = "loaded";
+      });
+      image.addEventListener("error", () => {
+        if (!image.isConnected) return;
+        previewStage.dataset.state = "error";
+        status.textContent = "This image could not be shown; open or download it instead.";
+      });
+      image.src = entry.href;
+      stopImage().replaceWith(image);
+      document.getElementById("preview-name").textContent = entry.name;
+      document.getElementById("preview-count").textContent = gallery.length > 1
+        ? (galleryIndex + 1) + " / " + gallery.length + " · " + formatSize(entry.size)
+        : formatSize(entry.size);
+      document.getElementById("preview-open").href = entry.href;
+      document.getElementById("preview-download").href = entry.href + "?download";
+      // Stepping on shows the neighbors from the cache.
+      if (gallery.length > 1) {
+        for (const step of [1, -1]) {
+          new Image().src = gallery[(galleryIndex + step + gallery.length) % gallery.length].href;
+        }
+      }
+    }
+
+    // Removing the source cancels a download still in progress.
+    function stopImage() {
+      const image = previewStage.querySelector("img");
+      image.removeAttribute("src");
+      return image;
+    }
+
+    // The preview steps through the images as the listing shows them, in
+    // its order and with its filter.
+    function openPreview(entry) {
+      gallery = [...entries].sort(compare).filter(item => item.previewable && !item.row.hidden);
+      for (const button of preview.querySelectorAll(".preview-step")) {
+        button.hidden = gallery.length < 2;
+      }
+      showImage(gallery.indexOf(entry));
+      preview.showModal();
+    }
+
     // An expired sign-in redirects to another origin, which the fetch cannot
     // follow; reloading the page signs in again.
     async function load() {
@@ -422,6 +536,7 @@
             size: item.size ?? 0,
             mtime: Date.parse(item.mtime),
           };
+          entry.previewable = !isDirectory && PREVIEWABLE.includes(extensionOf(item.name));
           entry.row = createEntryRow(entry);
           return entry;
         });
@@ -458,7 +573,54 @@
     list.addEventListener("click", event => {
       const button = event.target.closest(".copy");
       if (button) copyLink(button, button.closest(".entry").querySelector(".name").getAttribute("href"));
+      // A modified click still opens the image itself, as in a new tab.
+      if (!event.target.closest(".name") || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      const entry = entries.find(item => item.row === event.target.closest(".entry"));
+      if (entry?.previewable) {
+        event.preventDefault();
+        openPreview(entry);
+      }
     });
+
+    // Buttons step by their data-step, 0 closes, and so does a click beside
+    // the image. Escape closes the dialog natively.
+    preview.addEventListener("click", event => {
+      const button = event.target.closest("button");
+      if (button) {
+        const step = Number(button.dataset.step);
+        if (step) {
+          showImage(galleryIndex + step);
+        } else {
+          preview.close();
+        }
+      } else if (event.target === previewStage || event.target === preview) {
+        preview.close();
+      }
+    });
+    preview.addEventListener("keydown", event => {
+      const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+      if (step && gallery.length > 1) {
+        event.preventDefault();
+        showImage(galleryIndex + step);
+      }
+    });
+    // A horizontal swipe steps; anything else, such as pinch zoom, does not.
+    let swipeStart = null;
+    previewStage.addEventListener("touchstart", event => {
+      const [touch] = event.touches;
+      swipeStart = event.touches.length === 1 ? { x: touch.clientX, y: touch.clientY } : null;
+    }, { passive: true });
+    previewStage.addEventListener("touchend", event => {
+      const start = swipeStart;
+      swipeStart = null;
+      // A zoomed-in page pans instead.
+      if (!start || event.touches.length || gallery.length < 2 || window.visualViewport?.scale > 1) return;
+      const dx = event.changedTouches[0].clientX - start.x;
+      const dy = event.changedTouches[0].clientY - start.y;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > 2 * Math.abs(dy)) showImage(galleryIndex + (dx < 0 ? 1 : -1));
+    });
+    // A closed preview stops loading a large image.
+    preview.addEventListener("close", stopImage);
 
     filter.addEventListener("input", applyFilter);
     filter.addEventListener("keydown", event => {
@@ -468,7 +630,7 @@
       }
     });
     document.addEventListener("keydown", event => {
-      if (event.key === "/" && document.activeElement !== filter && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      if (event.key === "/" && !preview.open && document.activeElement !== filter && !event.ctrlKey && !event.metaKey && !event.altKey) {
         event.preventDefault();
         filter.focus();
       }
