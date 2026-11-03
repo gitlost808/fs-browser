@@ -114,10 +114,21 @@
     .preview-stage[data-state="error"] img { visibility: hidden; }
     .preview-status { position: absolute; inset: 45% 0 auto; margin: 0; color: #8d96a0; text-align: center; }
     .preview-stage[data-state="loaded"] .preview-status { display: none; }
-    .preview .preview-step { position: absolute; top: 50%; width: 2.75rem; height: 2.75rem; translate: 0 -50%; background: rgb(255 255 255 / .06); }
-    .preview .preview-step:hover { background: rgb(255 255 255 / .18); }
-    .preview-step[data-step="-1"] { left: .4rem; }
-    .preview-step[data-step="1"] { right: .4rem; }
+    /* A whole side of the stage steps, over the image's edge too; the round
+       mark only shows where. */
+    .preview .preview-step { position: absolute; inset-block: 0; width: max(4rem, 25%); padding-inline: .5rem; border-radius: 0; }
+    .preview .preview-step[data-step="-1"] { left: 0; justify-items: start; }
+    .preview .preview-step[data-step="1"] { right: 0; justify-items: end; }
+    .preview .preview-step:hover { background: none; }
+    .preview-step svg { box-sizing: content-box; width: 1.5rem; height: 1.5rem; padding: .75rem; border-radius: 50%; background: rgb(255 255 255 / .08); }
+    /* Touch screens would keep this after a tap. */
+    @media (hover: hover) {
+      .preview .preview-step[data-step="-1"]:hover { background: linear-gradient(to right, rgb(255 255 255 / .07), transparent); }
+      .preview .preview-step[data-step="1"]:hover { background: linear-gradient(to left, rgb(255 255 255 / .07), transparent); }
+      .preview-step:hover svg { background: rgb(255 255 255 / .2); }
+    }
+    .preview-step:focus-visible { outline: none; }
+    .preview-step:focus-visible svg { outline: 2px solid #4493f8; }
     @media (max-width: 40rem) {
       header { padding-inline: .75rem; }
       .wrap { padding: .75rem .5rem; }
@@ -134,9 +145,9 @@
       .size:empty { display: none; }
       .size::after { content: "·"; margin-left: .4rem; }
       .copy { width: 2.25rem; height: 2.25rem; }
-      /* The image takes the full width; the step buttons sit on top of it. */
+      /* The image takes the full width under the step sides. */
       .preview-stage img { inset: 0 0 .5rem; max-width: 100%; max-height: calc(100% - .5rem); }
-      .preview .preview-step { background: rgb(0 0 0 / .45); }
+      .preview-step svg { background: rgb(0 0 0 / .45); }
     }
   </style>
 </head>
@@ -582,8 +593,8 @@
       }
     });
 
-    // Buttons step by their data-step, 0 closes, and so does a click beside
-    // the image. Escape closes the dialog natively.
+    // Buttons step by their data-step, 0 closes, and so does a click above,
+    // below or between the step sides beside the image. Escape closes the dialog natively.
     preview.addEventListener("click", event => {
       const button = event.target.closest("button");
       if (button) {
