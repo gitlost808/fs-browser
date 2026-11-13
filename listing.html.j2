@@ -259,6 +259,7 @@
     // The images the preview steps through, and the one it shows.
     let gallery = [];
     let galleryIndex = 0;
+    let previewClosing = false;
 
     // File names need not be UTF-8; show such a path still percent-encoded.
     function decode(component) {
@@ -519,6 +520,7 @@
     // The preview steps through the images as the listing shows them, in
     // its order and with its filter.
     function openPreview(entry, remember = true) {
+      if (previewClosing) return;
       gallery = [...entries].sort(compare).filter(item =>
         item.previewable && (!item.row.hidden || item === entry));
       for (const button of preview.querySelectorAll(".preview-step")) {
@@ -531,14 +533,20 @@
     }
 
     function closePreview() {
-      if (!preview.open) return;
-      preview.close();
+      if (!preview.open || previewClosing) return;
       stopImage();
       // Explicit dismissal consumes the same entry as the browser Back button.
-      if (history.state?.fsPreview) history.back();
+      if (history.state?.fsPreview) {
+        // Keep the listing inert until the asynchronous traversal completes.
+        previewClosing = true;
+        history.back();
+      } else {
+        preview.close();
+      }
     }
 
     function restorePreview() {
+      previewClosing = false;
       const entry = entries.find(item => item.previewable && item.name === history.state?.fsPreview);
       if (entry) {
         openPreview(entry, false);
