@@ -497,6 +497,10 @@
         : formatSize(entry.size);
       document.getElementById("preview-open").href = entry.href;
       document.getElementById("preview-download").href = entry.href + "?download";
+      // Browsing images stays within one preview history entry.
+      if (preview.open) {
+        history.replaceState({ ...history.state, fsPreview: entry.name }, "");
+      }
       // Stepping on shows the neighbors from the cache.
       if (gallery.length > 1) {
         for (const step of [1, -1]) {
@@ -514,14 +518,37 @@
 
     // The preview steps through the images as the listing shows them, in
     // its order and with its filter.
-    function openPreview(entry) {
-      gallery = [...entries].sort(compare).filter(item => item.previewable && !item.row.hidden);
+    function openPreview(entry, remember = true) {
+      gallery = [...entries].sort(compare).filter(item =>
+        item.previewable && (!item.row.hidden || item === entry));
       for (const button of preview.querySelectorAll(".preview-step")) {
         button.hidden = gallery.length < 2;
       }
+      // Keep the listing URL and its filter, sort order and scroll position.
+      if (remember) history.pushState({ ...history.state, fsPreview: entry.name }, "");
       showImage(gallery.indexOf(entry));
       preview.showModal();
     }
+
+    function closePreview() {
+      if (!preview.open) return;
+      preview.close();
+      stopImage();
+      // Explicit dismissal consumes the same entry as the browser Back button.
+      if (history.state?.fsPreview) history.back();
+    }
+
+    function restorePreview() {
+      const entry = entries.find(item => item.previewable && item.name === history.state?.fsPreview);
+      if (entry) {
+        openPreview(entry, false);
+      } else {
+        preview.close();
+        stopImage();
+      }
+    }
+
+    window.addEventListener("popstate", restorePreview);
 
     // An expired sign-in redirects to another origin, which the fetch cannot
     // follow; reloading the page signs in again.
@@ -562,6 +589,8 @@
         applyFilter();
         document.getElementById("toolbar").hidden = false;
         document.getElementById("listing").hidden = false;
+        // Forward navigation and reload can restore the preview's last image.
+        restorePreview();
         showReadme().catch(() => {});
       })
       .catch(error => {
@@ -594,7 +623,7 @@
     });
 
     // Buttons step by their data-step, 0 closes, and so does a click above,
-    // below or between the step sides beside the image. Escape closes the dialog natively.
+    // below or between the step sides beside the image.
     preview.addEventListener("click", event => {
       const button = event.target.closest("button");
       if (button) {
@@ -602,10 +631,10 @@
         if (step) {
           showImage(galleryIndex + step);
         } else {
-          preview.close();
+          closePreview();
         }
       } else if (event.target === previewStage || event.target === preview) {
-        preview.close();
+        closePreview();
       }
     });
     preview.addEventListener("keydown", event => {
@@ -630,8 +659,10 @@
       const dy = event.changedTouches[0].clientY - start.y;
       if (Math.abs(dx) > 50 && Math.abs(dx) > 2 * Math.abs(dy)) showImage(galleryIndex + (dx < 0 ? 1 : -1));
     });
-    // A closed preview stops loading a large image.
-    preview.addEventListener("close", stopImage);
+    preview.addEventListener("cancel", event => {
+      event.preventDefault();
+      closePreview();
+    });
 
     filter.addEventListener("input", applyFilter);
     filter.addEventListener("keydown", event => {
