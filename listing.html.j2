@@ -498,9 +498,10 @@
         : formatSize(entry.size);
       document.getElementById("preview-open").href = entry.href;
       document.getElementById("preview-download").href = entry.href + "?download";
-      // Browsing images stays within one preview history entry.
+      // Browsing images stays within one preview history entry, whose URL
+      // names the image shown.
       if (preview.open) {
-        history.replaceState({ ...history.state, fsPreview: entry.name }, "");
+        history.replaceState({ ...history.state, fsPreview: entry.name }, "", previewHash(entry));
       }
       // Stepping on shows the neighbors from the cache.
       if (gallery.length > 1) {
@@ -517,6 +518,19 @@
       return image;
     }
 
+    // A preview's URL is the listing's with the image in its fragment, such
+    // as `/photos/#cat.jpg`, so it can be shared; nginx never sees it.
+    function previewHash(entry) {
+      return "#" + entry.href;
+    }
+
+    // Browsers may leave characters in a typed or pasted fragment unencoded.
+    function hashedEntry() {
+      const hash = location.hash.slice(1);
+      if (!hash) return undefined;
+      return entries.find(item => item.previewable && (item.href === hash || item.name === decode(hash)));
+    }
+
     // The preview steps through the images as the listing shows them, in
     // its order and with its filter.
     function openPreview(entry, remember = true) {
@@ -527,7 +541,7 @@
         button.hidden = gallery.length < 2;
       }
       // Keep the listing URL and its filter, sort order and scroll position.
-      if (remember) history.pushState({ ...history.state, fsPreview: entry.name }, "");
+      if (remember) history.pushState({ ...history.state, fsPreview: entry.name }, "", previewHash(entry));
       showImage(gallery.indexOf(entry));
       preview.showModal();
     }
@@ -545,18 +559,30 @@
       }
     }
 
-    function restorePreview() {
+    // The URL decides whether the preview is open, and on which image.
+    function restorePreview(initial = false) {
       previewClosing = false;
-      const entry = entries.find(item => item.previewable && item.name === history.state?.fsPreview);
-      if (entry) {
-        openPreview(entry, false);
-      } else {
+      const entry = hashedEntry();
+      if (!entry) {
         preview.close();
         stopImage();
+        return;
       }
+      if (!history.state?.fsPreview) {
+        if (initial) {
+          // A shared link opens over its listing, which Back and closing
+          // then return to.
+          history.replaceState(history.state, "", location.pathname + location.search);
+          openPreview(entry);
+          return;
+        }
+        // An edited fragment added this entry; closing returns past it.
+        history.replaceState({ ...history.state, fsPreview: entry.name }, "");
+      }
+      openPreview(entry, false);
     }
 
-    window.addEventListener("popstate", restorePreview);
+    window.addEventListener("popstate", () => restorePreview());
 
     // An expired sign-in redirects to another origin, which the fetch cannot
     // follow; reloading the page signs in again.
@@ -597,8 +623,8 @@
         applyFilter();
         document.getElementById("toolbar").hidden = false;
         document.getElementById("listing").hidden = false;
-        // Forward navigation and reload can restore the preview's last image.
-        restorePreview();
+        // A shared link, Forward navigation and reload open the preview's image.
+        restorePreview(true);
         showReadme().catch(() => {});
       })
       .catch(error => {
