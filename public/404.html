@@ -1,19 +1,11 @@
 <!doctype html>
-<!--
-  Not-found page for fs.0x29a.me. Nginx answers every missing file and
-  directory with this page and status 404 (`error_page` in
-  sites-available/fs.0x29a.me.conf), at the URL that was asked for. The page
-  walks up that URL to the nearest directory with a listing, links it, and
-  suggests entries there with a similar name. Without JavaScript it still
-  explains the error and links the root. It uses no template variables; the
-  nginx role renders it with the other viewer pages.
--->
+<!-- Nginx file browser; see README.md for the HTTP integration contract. -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>Not found · fs.0x29a.me</title>
+  <title>Not found · Files</title>
   <style>
     :root {
       color-scheme: light dark;
@@ -74,7 +66,7 @@
 </head>
 <body>
   <header>
-    <nav class="path" id="path" aria-label="Path"><a href="/">fs.0x29a.me</a></nav>
+    <nav class="path" id="path" aria-label="Path"><a href="/">Files</a></nav>
   </header>
   <main>
     <p class="code">404</p>
@@ -100,6 +92,7 @@
 
   <script>
     "use strict";
+    document.title = "Not found · " + location.host;
 
     // At most this many similarly named entries are suggested.
     const SUGGESTION_LIMIT = 5;
