@@ -98,4 +98,3 @@ async function view(fileName, bytes) {
         images = json.loads(re.search(r"^\s*image: (\[.*\]),$", rendered, re.M).group(1))
         self.assertTrue(previewable)
         self.assertLessEqual(set(previewable), set(images))
-
