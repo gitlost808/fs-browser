@@ -1,18 +1,10 @@
 <!doctype html>
-<!--
-  Syntax-highlighting viewer for fs.0x29a.me. Nginx serves this page at a
-  source file's own URL when a browser asks for HTML (nginx/shared/fs-files.conf);
-  the page then fetches the same URL with `?raw` and highlights it locally.
-  The nginx role renders this template from nginx_fs_viewer_extensions and
-  nginx_fs_viewer_file_names, the same declarations that select those URLs.
-  The vendored files beside it are highlight.js 11.12.0 (BSD-3-Clause) from
-  @highlightjs/cdn-assets, unmodified.
--->
+<!-- Nginx file browser; see README.md for the HTTP integration contract. -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>fs.0x29a.me</title>
+  <title>Files</title>
   <link rel="stylesheet" href="/.fs-viewer/github.min.css" media="(prefers-color-scheme: light)">
   <link rel="stylesheet" href="/.fs-viewer/github-dark.min.css" media="(prefers-color-scheme: dark)">
   <style>
@@ -51,6 +43,7 @@
   <script src="/.fs-viewer/dockerfile.min.js"></script>
   <script src="/.fs-viewer/nix.min.js"></script>
   <script src="/.fs-viewer/django.min.js"></script>
+  <script src="/.fs-viewer/config.js"></script>
   <script>
     "use strict";
 
@@ -58,8 +51,8 @@
     // full or freezes the tab while highlighting.
     const READ_LIMIT = 1024 * 1024;
 
-    const EXTENSIONS = {{ nginx_fs_viewer_extensions | tojson }};
-    const FILE_NAMES = {{ nginx_fs_viewer_file_names | tojson }};
+    const EXTENSIONS = globalThis.FS_BROWSER_CONFIG.extensions;
+    const FILE_NAMES = globalThis.FS_BROWSER_CONFIG.fileNames;
 
     // File names need not be UTF-8; show such a path still percent-encoded.
     function decode(component) {
@@ -74,7 +67,7 @@
     const name = decode(path.split("/").pop());
     const rawUrl = path + "?raw";
     const downloadUrl = path + "?download";
-    document.title = name + " · fs.0x29a.me";
+    document.title = name + " · " + location.host;
     document.getElementById("path").textContent = decode(path);
 
     function showNotice(text) {

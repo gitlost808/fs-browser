@@ -1,17 +1,10 @@
 <!doctype html>
-<!--
-  Directory listing for fs.0x29a.me. Nginx serves this page at a directory's
-  own URL when a browser navigates to it (nginx/shared/fs-listing.conf); the
-  page then fetches the same URL with `?json`, nginx's JSON listing, and
-  renders it. `?raw` is nginx's plain listing. The nginx role renders this
-  template with the viewer declarations, so files that open in the
-  syntax-highlighting viewer get its icon.
--->
+<!-- Nginx file browser; see README.md for the HTTP integration contract. -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>fs.0x29a.me</title>
+  <title>Files</title>
   <style>
     :root {
       color-scheme: light dark;
@@ -219,13 +212,14 @@
     <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   </svg>
 
+  <script src="/.fs-viewer/config.js"></script>
   <script>
     "use strict";
 
     // Names that open in the syntax-highlighting viewer, matched like nginx
     // does: case-insensitively by extension or by exact file name.
-    const EXTENSIONS = {{ nginx_fs_viewer_extensions | list | tojson }};
-    const FILE_NAMES = {{ nginx_fs_viewer_file_names | list | tojson }};
+    const EXTENSIONS = Object.keys(globalThis.FS_BROWSER_CONFIG.extensions);
+    const FILE_NAMES = Object.keys(globalThis.FS_BROWSER_CONFIG.fileNames);
 
     // Icons only; nginx serves these files like any other.
     const KINDS = {
