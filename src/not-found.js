@@ -1,4 +1,7 @@
-"use strict";
+import { decode } from "./files.js";
+import { renderBreadcrumbs } from "./dom.js";
+import { fetchListing } from "./http.js";
+
 document.title = "Not found · " + location.host;
 
 // At most this many similarly named entries are suggested.
@@ -7,15 +10,6 @@ const SUGGESTION_LIMIT = 5;
 const path = location.pathname;
 const segments = path.split("/").filter(Boolean);
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
-
-// File names need not be UTF-8; show such a path still percent-encoded.
-function decode(component) {
-  try {
-    return decodeURIComponent(component);
-  } catch {
-    return component;
-  }
-}
 
 function directoryUrl(depth) {
   return "/" + segments.slice(0, depth).map((segment) => segment + "/").join("");
@@ -26,19 +20,7 @@ function displayPath(depth) {
 }
 
 function renderPath() {
-  const nav = document.getElementById("path");
-  nav.firstElementChild.textContent = location.host;
-  segments.forEach((segment, index) => {
-    const last = index === segments.length - 1;
-    const item = document.createElement(last ? "span" : "a");
-    item.textContent = decode(segment);
-    if (last) {
-      item.setAttribute("aria-current", "page");
-    } else {
-      item.href = directoryUrl(index + 1);
-    }
-    nav.append(item);
-  });
+  renderBreadcrumbs(document.getElementById("path"), path, location.host);
   const target = document.createElement("code");
   target.textContent = decode(path);
   document.getElementById("explanation").replaceChildren(
@@ -52,8 +34,8 @@ function renderPath() {
 async function nearestListing() {
   for (let depth = segments.length - 1; depth >= 0; depth--) {
     try {
-      const response = await fetch(directoryUrl(depth) + "?json", { redirect: "error" });
-      if (response.ok) return { depth, entries: await response.json() };
+      const entries = await fetchListing(directoryUrl(depth), { redirect: "error" });
+      return { depth, entries };
     } catch {
       // Try the next directory up.
     }

@@ -1,9 +1,6 @@
-"use strict";
-
-// Names that open in the syntax-highlighting viewer, matched like nginx
-// does: case-insensitively by extension or by exact file name.
-const EXTENSIONS = Object.keys(globalThis.FS_BROWSER_CONFIG.extensions);
-const FILE_NAMES = Object.keys(globalThis.FS_BROWSER_CONFIG.fileNames);
+import { decode, extensionOf, languageFor } from "./files.js";
+import { showNotice, renderBreadcrumbs } from "./dom.js";
+import { fetchListing, readLimitedText } from "./http.js";
 
 // Icons only; nginx serves these files like any other.
 const KINDS = {
@@ -39,47 +36,11 @@ let gallery = [];
 let galleryIndex = 0;
 let previewClosing = false;
 
-// File names need not be UTF-8; show such a path still percent-encoded.
-function decode(component) {
-  try {
-    return decodeURIComponent(component);
-  } catch {
-    return component;
-  }
-}
-
-function showNotice(content) {
-  const notice = document.getElementById("notice");
-  notice.replaceChildren(...content);
-  notice.hidden = false;
-}
-
 function plainListingLink(text) {
   const link = document.createElement("a");
   link.href = "?raw";
   link.textContent = text;
   return link;
-}
-
-function renderPath() {
-  const nav = document.getElementById("path");
-  const segments = path.split("/").filter(Boolean);
-  const root = document.createElement("a");
-  root.href = "/";
-  root.textContent = location.host;
-  nav.append(root);
-  segments.forEach((segment, index) => {
-    const last = index === segments.length - 1;
-    const item = document.createElement(last ? "span" : "a");
-    item.textContent = decode(segment);
-    if (last) {
-      item.setAttribute("aria-current", "page");
-    } else {
-      item.href = "/" + segments.slice(0, index + 1).join("/") + "/";
-    }
-    nav.append(item);
-  });
-  document.title = segments.length ? decode(segments.at(-1)) + " · " + location.host : location.host;
 }
 
 function formatSize(bytes) {
@@ -102,16 +63,10 @@ function formatAge(time) {
   return "just now";
 }
 
-function extensionOf(name) {
-  const lower = name.toLowerCase();
-  return lower.includes(".") ? lower.split(".").pop() : "";
-}
-
 function kindOf(entry) {
   if (entry.isDirectory) return "folder";
-  const lower = entry.name.toLowerCase();
-  const extension = extensionOf(lower);
-  if (EXTENSIONS.includes(extension) || FILE_NAMES.some(name => name.toLowerCase() === lower)) {
+  const extension = extensionOf(entry.name);
+  if (languageFor(entry.name) !== undefined) {
     return "code";
   }
   return Object.keys(KINDS).find(kind => KINDS[kind].includes(extension)) ?? "file";
@@ -246,7 +201,7 @@ async function showReadme() {
   const name = document.getElementById("readme-name");
   name.textContent = readme.name;
   name.href = readme.href;
-  const text = await globalThis.FS_BROWSER_MARKDOWN.readLimitedText(response, README_LIMIT);
+  const text = await readLimitedText(response, README_LIMIT);
   if (globalThis.FS_BROWSER_MARKDOWN.isMarkdown(readme.name)) {
     const article = document.getElementById("readme-markdown");
     globalThis.FS_BROWSER_MARKDOWN.renderMarkdown(article, text, new URL(readme.href, location.href));
@@ -370,20 +325,12 @@ function restorePreview(initial = false) {
 
 window.addEventListener("popstate", () => restorePreview());
 
-// An expired sign-in redirects to another origin, which the fetch cannot
-// follow; reloading the page signs in again.
-async function load() {
-  const response = await fetch(path + "?json");
-  if (!response.ok) throw new Error(response.status + " " + response.statusText);
-  const data = await response.json();
-  if (!Array.isArray(data)) throw new Error("unexpected listing format");
-  return data;
-}
-
-renderPath();
+renderBreadcrumbs(document.getElementById("path"), path, location.host);
+const segments = path.split("/").filter(Boolean);
+document.title = segments.length ? decode(segments.at(-1)) + " · " + location.host : location.host;
 loadSort();
 
-load()
+fetchListing(path)
   .then(data => {
     entries = data.map(item => {
       const isDirectory = item.type === "directory";

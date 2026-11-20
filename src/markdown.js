@@ -8,25 +8,6 @@ export function isMarkdown(name) {
   return markdownName.test(name);
 }
 
-// Bound the actual response too: autoindex size may be stale or inaccurate.
-export async function readLimitedText(response, limit) {
-  const reader = response.body.getReader();
-  const chunks = [];
-  let size = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.length;
-      if (size > limit) throw new Error("README exceeds the 64 KiB preview limit");
-      chunks.push(value);
-    }
-  } finally {
-    await reader.cancel();
-  }
-  return new TextDecoder().decode(await new Blob(chunks).arrayBuffer());
-}
-
 export function renderMarkdown(target, text, sourceURL) {
   // No styles, forms, embedded documents, SVG, or named elements from files.
   const fragment = DOMPurify.sanitize(parser.parse(text), {

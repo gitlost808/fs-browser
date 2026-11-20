@@ -1,0 +1,53 @@
+  <header>
+    {{breadcrumbs}}
+    <a href="?raw">plain</a>
+  </header>
+  <div class="wrap">
+    <noscript><p class="message">This listing needs JavaScript; open the <a href="?raw">plain listing</a> instead.</p></noscript>
+    <div class="toolbar" id="toolbar" hidden>
+      <input id="filter" type="search" placeholder="Filter (press /)" aria-label="Filter by name" autocomplete="off" spellcheck="false">
+      <span class="summary" id="summary" aria-live="polite"></span>
+    </div>
+    <div class="box" id="listing" hidden>
+      <div class="row head">
+        <button class="sort" type="button" data-key="name">Name</button>
+        <button class="sort" type="button" data-key="size">Size</button>
+        <button class="sort" type="button" data-key="mtime">Modified</button>
+      </div>
+      <ul id="entries"></ul>
+      <p class="message" id="empty" hidden></p>
+    </div>
+    <p class="message" id="notice" hidden></p>
+    <section class="box readme" id="readme" hidden>
+      <h2><a id="readme-name"></a></h2>
+      <pre id="readme-text"></pre>
+      <article id="readme-markdown" hidden></article>
+    </section>
+  </div>
+
+  <dialog class="preview" id="preview" aria-label="Image preview">
+    <div class="preview-bar">
+      <span class="preview-name" id="preview-name"></span>
+      <span class="preview-count" id="preview-count"></span>
+      <a id="preview-open">open</a>
+      <a id="preview-download" download>download</a>
+      <button class="preview-close" type="button" data-step="0" aria-label="Close" autofocus><svg aria-hidden="true"><use href="#i-close"></use></svg></button>
+    </div>
+    <div class="preview-stage" id="preview-stage">
+      <p class="preview-status" id="preview-status"></p>
+      <img alt="">
+      <button class="preview-step" type="button" data-step="-1" aria-label="Previous image"><svg aria-hidden="true"><use href="#i-prev"></use></svg></button>
+      <button class="preview-step" type="button" data-step="1" aria-label="Next image"><svg aria-hidden="true"><use href="#i-next"></use></svg></button>
+    </div>
+  </dialog>
+
+  <template id="row">
+    <li class="row entry">
+      <svg class="icon" aria-hidden="true"><use></use></svg>
+      <a class="name"></a>
+      <span class="meta"><span class="size"></span><time class="mtime"></time></span>
+      <button class="copy" type="button"><svg aria-hidden="true"><use href="#i-link"></use></svg></button>
+    </li>
+  </template>
+
+  {{icons}}

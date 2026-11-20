@@ -1,0 +1,34 @@
+.path [aria-current] { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+main { max-width: 36rem; margin: 0 auto; padding: 3rem 1rem; }
+.code { margin: 0; color: var(--muted); font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+h1 { margin: .4rem 0 .5rem; font-size: 1.75rem; line-height: 1.2; }
+p { margin: 0 0 1rem; }
+code {
+  padding: .1rem .35rem; overflow-wrap: anywhere; background: var(--subtle); border: 1px solid var(--line);
+  border-radius: 6px; font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem; }
+.button {
+  display: inline-flex; gap: .4rem; align-items: center; max-width: 100%; padding: .4rem .8rem;
+  text-decoration: none; background: var(--subtle); border: 1px solid var(--line); border-radius: 6px;
+}
+.button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.button:hover { border-color: var(--muted); }
+.button.primary { color: #fff; background: var(--button); border-color: transparent; }
+.button.primary:hover { filter: brightness(1.1); }
+.button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.suggestions { margin-top: 2rem; }
+.suggestions h2 { margin: 0 0 .5rem; color: var(--muted); font-size: 13px; font-weight: 600; }
+ul { margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+li + li { border-top: 1px solid var(--line); }
+li a { display: flex; gap: .75rem; align-items: center; padding: .45rem .75rem; overflow-wrap: anywhere; text-decoration: none; }
+li a:hover, li a:focus-visible { background: var(--subtle); text-decoration: underline; outline: none; }
+svg { flex: none; }
+li svg { color: var(--muted); }
+li[data-kind="folder"] svg, .button:not(.primary) svg { color: var(--folder); }
+li[data-kind="folder"] svg { fill: currentColor; fill-opacity: .2; }
+@media (max-width: 40rem) {
+  header { padding-inline: .75rem; }
+  main { padding: 2rem .75rem; }
+  h1 { font-size: 1.5rem; }
+}

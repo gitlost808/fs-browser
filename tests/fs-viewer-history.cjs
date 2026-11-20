@@ -2,6 +2,8 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
+const path = require("node:path");
+const { buildSync } = require("esbuild");
 
 class Element {
   constructor() {
@@ -14,6 +16,7 @@ class Element {
   addEventListener(type, listener) { this.listeners[type] = listener; }
   fire(type, event = {}) { this.listeners[type]?.(event); }
   append() {}
+  replaceChildren() {}
   showModal() { this.open = true; }
   close() { this.open = false; }
   removeAttribute(name) { delete this[name]; }
@@ -71,7 +74,11 @@ const context = vm.createContext({
   // Supply the loaded entries below, without network or production data.
   fetch: () => new Promise(() => {}),
 });
-vm.runInContext(fs.readFileSync(0, "utf8"), context);
+const bundled = buildSync({
+  stdin: { contents: fs.readFileSync(0, "utf8"), resolveDir: path.join(__dirname, "../src") },
+  bundle: true, format: "esm", write: false,
+}).outputFiles[0].text;
+vm.runInContext(bundled, context);
 vm.runInContext(`
   entries = ["photo #1.png", "photo 2.png", "hidden.png"].map(name => ({
     name, href: encodeURIComponent(name), size: 10, previewable: true,

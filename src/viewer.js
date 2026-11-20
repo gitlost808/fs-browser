@@ -1,20 +1,10 @@
-"use strict";
+import { decode, languageFor } from "./files.js";
+import { showNotice } from "./dom.js";
+import { readBytes } from "./http.js";
 
 // Only this much is read, so a large or mislabeled file never downloads in
 // full or freezes the tab while highlighting.
 const READ_LIMIT = 1024 * 1024;
-
-const EXTENSIONS = globalThis.FS_BROWSER_CONFIG.extensions;
-const FILE_NAMES = globalThis.FS_BROWSER_CONFIG.fileNames;
-
-// File names need not be UTF-8; show such a path still percent-encoded.
-function decode(component) {
-  try {
-    return decodeURIComponent(component);
-  } catch {
-    return component;
-  }
-}
 
 const path = location.pathname;
 const name = decode(path.split("/").pop());
@@ -23,28 +13,10 @@ const downloadUrl = path + "?download";
 document.title = name + " · " + location.host;
 document.getElementById("path").textContent = decode(path);
 
-function showNotice(text) {
-  const notice = document.getElementById("notice");
-  notice.textContent = text;
-  notice.hidden = false;
-}
-
 async function readRaw() {
   const response = await fetch(rawUrl);
   if (!response.ok) throw new Error(response.status + " " + response.statusText);
-  const reader = response.body.getReader();
-  const chunks = [];
-  let size = 0;
-  while (size <= READ_LIMIT) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    size += value.length;
-  }
-  const truncated = size > READ_LIMIT;
-  if (truncated) reader.cancel();
-  const bytes = new Uint8Array(await new Blob(chunks).arrayBuffer()).subarray(0, READ_LIMIT);
-  return { bytes, truncated };
+  return readBytes(response, READ_LIMIT);
 }
 
 // Strict UTF-8 first; anything else is most likely a legacy Western
@@ -56,16 +28,6 @@ function decodeText(bytes, truncated) {
   } catch {
     return new TextDecoder("windows-1252").decode(bytes);
   }
-}
-
-// Nginx matches both declarations case-insensitively.
-function languageFor(name) {
-  const lower = name.toLowerCase();
-  const extension = lower.includes(".") ? lower.split(".").pop() : "";
-  if (Object.hasOwn(EXTENSIONS, extension)) {
-    return EXTENSIONS[extension];
-  }
-  return FILE_NAMES[Object.keys(FILE_NAMES).find(fileName => fileName.toLowerCase() === lower)];
 }
 
 function highlight(text, truncated) {

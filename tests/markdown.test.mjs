@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { JSDOM } from "jsdom";
+import { readBytes, readLimitedText } from "../src/http.js";
 
 const config = JSON.parse(fs.readFileSync(new URL("../examples/config.json", import.meta.url)));
 const asset = name => fs.readFileSync(new URL(`../dist/${name}`, import.meta.url), "utf8");
@@ -82,19 +83,20 @@ test("untrusted Markdown and raw HTML cannot introduce scripts, unsafe URLs, CSS
   } finally { window.close(); }
 });
 
-test("README streaming enforces the byte limit even if autoindex size was stale", async () => {
-  const window = browser();
-  try {
-    let cancelled = false;
-    const body = new ReadableStream({
-      pull(controller) { controller.enqueue(new Uint8Array(40000)); },
-      cancel() { cancelled = true; },
-    });
-    await assert.rejects(window.FS_BROWSER_MARKDOWN.readLimitedText({ body }, 65536), /64 KiB/);
-    assert.equal(cancelled, true);
-    const text = await window.FS_BROWSER_MARKDOWN.readLimitedText(new Response("Grüße"), 65536);
-    assert.equal(text, "Grüße");
-  } finally { window.close(); }
+test("shared response reader enforces byte limits and cancels oversized streams", async () => {
+  let cancelled = false;
+  const body = new ReadableStream({
+    pull(controller) { controller.enqueue(new Uint8Array(40000)); },
+    cancel() { cancelled = true; },
+  });
+  await assert.rejects(readLimitedText({ body }, 65536), /preview limit/);
+  assert.equal(cancelled, true);
+  assert.equal(await readLimitedText(new Response("Grüße"), 65536), "Grüße");
+  for (const [text, truncated] of [["abcd", false], ["abcde", true]]) {
+    const result = await readBytes(new Response(text), 4);
+    assert.equal(new TextDecoder().decode(result.bytes), "abcd");
+    assert.equal(result.truncated, truncated);
+  }
 });
 
 test("standalone Markdown renders while raw/download links and truncated source fallback remain available", async () => {
@@ -144,6 +146,50 @@ test("directory README Markdown uses its own URL and txt READMEs stay plain text
         assert.equal(markdown.querySelector("h1").textContent, "Docs");
         assert.equal(markdown.querySelector("a").href, "https://files.example/docs/next.md");
         assert.equal(markdown.querySelector("img").src, "https://files.example/docs/images/x.svg");
+      }
+    } finally { window.close(); }
+  }
+});
+
+test("shared breadcrumbs preserve encoded URLs and tolerate invalid UTF-8 names", async () => {
+  const window = browser("listing.html", "/docs%20and%20files/%FF/");
+  try {
+    window.fetch = async () => new Response("[]");
+    window.eval(asset("listing.js"));
+    await until(() => !window.document.getElementById("listing").hidden);
+    const nav = window.document.getElementById("path");
+    assert.equal(nav.firstElementChild.textContent, "files.example");
+    assert.equal(nav.querySelectorAll("a")[1].getAttribute("href"), "/docs%20and%20files/");
+    assert.equal(nav.querySelectorAll("a")[1].textContent, "docs and files");
+    assert.equal(nav.lastElementChild.textContent, "%FF");
+    assert.equal(nav.lastElementChild.getAttribute("aria-current"), "page");
+  } finally { window.close(); }
+});
+
+test("404 shares breadcrumbs and skips protected or malformed ancestor listings", async () => {
+  for (const failure of ["protected", "malformed"]) {
+    const window = browser("404.html", "/docs/privat/README.md");
+    const requests = [];
+    try {
+      window.fetch = async (url, options) => {
+        requests.push(url);
+        assert.equal(options.redirect, "error");
+        if (url === "/docs/privat/?json") {
+          if (failure === "protected") throw new Error("sign-in redirect");
+          return new Response('{"error":"not a listing"}');
+        }
+        assert.equal(url, "/docs/?json");
+        return new Response(JSON.stringify([{ name: "private", type: "directory" }]));
+      };
+      window.eval(asset("not-found.js"));
+      await until(() => !window.document.getElementById("suggestions").hidden);
+      assert.deepEqual(requests, ["/docs/privat/?json", "/docs/?json"]);
+      assert.equal(window.document.getElementById("nearest").getAttribute("href"), "/docs/");
+      assert.equal(window.document.querySelector("#suggestion-list a").getAttribute("href"), "/docs/private/");
+      assert.equal(window.document.querySelector("#path [aria-current]").textContent, "README.md");
+      assert.match(window.document.getElementById("nearest-note").textContent, /docs\/privat/);
+      for (const use of window.document.querySelectorAll("use[href]")) {
+        assert.ok(window.document.getElementById(use.getAttribute("href").slice(1)));
       }
     } finally { window.close(); }
   }

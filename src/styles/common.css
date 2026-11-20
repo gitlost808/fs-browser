@@ -1,0 +1,22 @@
+:root {
+  color-scheme: light dark;
+  --bg: #fff; --fg: #1f2328; --muted: #656d76; --line: #d0d7de; --subtle: #f6f8fa;
+  --accent: #0969da; --folder: #54aeff; --done: #1a7f37; --button: #0969da;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --fg: #e6edf3; --muted: #8d96a0; --line: #30363d; --subtle: #161b22;
+    --accent: #4493f8; --folder: #58a6ff; --done: #3fb950; --button: #1f6feb;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; }
+a { color: inherit; }
+header { display: flex; gap: 1rem; align-items: baseline; padding: .6rem 1rem; border-bottom: 1px solid var(--line); }
+.path { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.path a { text-decoration: none; }
+.path a:hover { text-decoration: underline; }
+.path > * + *::before { content: "/"; display: inline-block; margin: 0 .35rem; color: var(--muted); font-weight: 400; }
+.message a { color: var(--muted); }
+svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
