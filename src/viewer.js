@@ -86,6 +86,15 @@ function highlight(text, truncated) {
 }
 
 function render(text, truncated) {
+  if (!truncated && globalThis.FS_BROWSER_MARKDOWN.isMarkdown(name)) {
+    const article = document.getElementById("markdown");
+    globalThis.FS_BROWSER_MARKDOWN.renderMarkdown(article, text, location.href);
+    document.getElementById("main").remove();
+    article.id = "main";
+    article.hidden = false;
+    if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
+    return;
+  }
   const lineCount = text.split("\n").length - (text.endsWith("\n") ? 1 : 0);
   const lines = document.getElementById("lines");
   for (let number = 1; number <= Math.max(lineCount, 1); number++) {

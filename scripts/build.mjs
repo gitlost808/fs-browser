@@ -20,6 +20,7 @@ await build({
   absWorkingDir: root,
   entryPoints: {
     viewer: "src/viewer.js",
+    markdown: "src/markdown-browser.js",
     listing: "src/listing.js",
     "not-found": "src/not-found.js",
     highlight: "src/highlight-browser.js",
@@ -36,6 +37,9 @@ await build({
 });
 fs.cpSync(path.join(root, "public"), output, { recursive: true });
 fs.copyFileSync(path.join(root, "node_modules/highlight.js/LICENSE"), path.join(output, "highlight.js.LICENSE"));
+for (const name of ["marked", "dompurify"]) {
+  fs.copyFileSync(path.join(root, "node_modules", name, "LICENSE"), path.join(output, `${name}.LICENSE`));
+}
 fs.writeFileSync(path.join(output, "contract.json"), JSON.stringify({
   version: 1,
   languages: hljs.listLanguages().sort(),

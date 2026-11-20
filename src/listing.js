@@ -18,7 +18,7 @@ const KINDS = {
 const PREVIEWABLE = ["avif", "bmp", "gif", "ico", "jpeg", "jpg", "png", "svg", "webp"];
 
 // A README up to this size is shown below the listing.
-const README = /^readme(\.(md|txt))?$/i;
+const README = /^readme(\.(md|markdown|txt))?$/i;
 const README_LIMIT = 64 * 1024;
 
 const SORT_STORAGE_KEY = "fs-listing-sort";
@@ -246,7 +246,15 @@ async function showReadme() {
   const name = document.getElementById("readme-name");
   name.textContent = readme.name;
   name.href = readme.href;
-  section.querySelector("pre").textContent = await response.text();
+  const text = await globalThis.FS_BROWSER_MARKDOWN.readLimitedText(response, README_LIMIT);
+  if (globalThis.FS_BROWSER_MARKDOWN.isMarkdown(readme.name)) {
+    const article = document.getElementById("readme-markdown");
+    globalThis.FS_BROWSER_MARKDOWN.renderMarkdown(article, text, new URL(readme.href, location.href));
+    document.getElementById("readme-text").hidden = true;
+    article.hidden = false;
+  } else {
+    document.getElementById("readme-text").textContent = text;
+  }
   section.hidden = false;
 }
 

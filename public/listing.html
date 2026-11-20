@@ -5,6 +5,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Files</title>
+  <link rel="stylesheet" href="/.fs-viewer/markdown.css">
+  <link rel="stylesheet" href="/.fs-viewer/github.min.css" media="(prefers-color-scheme: light)">
+  <link rel="stylesheet" href="/.fs-viewer/github-dark.min.css" media="(prefers-color-scheme: dark)">
   <style>
     :root {
       color-scheme: light dark;
@@ -80,8 +83,8 @@
     .message { margin: 0; padding: 1.5rem 1rem; color: var(--muted); text-align: center; }
     .message a { color: var(--muted); }
     .readme { margin-top: 1rem; }
-    .readme h2 { margin: 0; padding: .45rem .75rem; font-size: 13px; background: var(--subtle); border-bottom: 1px solid var(--line); }
-    .readme pre {
+    .readme > h2 { margin: 0; padding: .45rem .75rem; font-size: 13px; background: var(--subtle); border-bottom: 1px solid var(--line); }
+    .readme > pre {
       margin: 0; padding: .75rem; white-space: pre-wrap; overflow-wrap: anywhere;
       font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
     }
@@ -167,7 +170,8 @@
     <p class="message" id="notice" hidden></p>
     <section class="box readme" id="readme" hidden>
       <h2><a id="readme-name"></a></h2>
-      <pre></pre>
+      <pre id="readme-text"></pre>
+      <article id="readme-markdown" hidden></article>
     </section>
   </div>
 
@@ -212,6 +216,8 @@
     <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   </svg>
 
+  <script src="/.fs-viewer/highlight.js"></script>
+  <script src="/.fs-viewer/markdown.js"></script>
   <script src="/.fs-viewer/config.js"></script>
   <script src="/.fs-viewer/listing.js"></script>
 </body>

@@ -22,7 +22,8 @@ class BuildTests(unittest.TestCase):
                 for name in re.findall(r'(?:src|href)="/\.fs-viewer/([^"?]+)"', page.read_text()):
                     if name != "config.js":
                         self.assertTrue((output / name).is_file(), name)
-            self.assertTrue((output / "highlight.js.LICENSE").stat().st_size)
+            for name in ("highlight.js", "marked", "dompurify"):
+                self.assertTrue((output / f"{name}.LICENSE").stat().st_size)
             self.assertFalse(any(path.is_symlink() for path in output.rglob("*")))
             self.assertFalse((output / "config.js").exists())
             contract = json.loads((output / "contract.json").read_text())

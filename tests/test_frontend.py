@@ -37,6 +37,7 @@ async function view(fileName, bytes) {
   const code = element();
   const context = vm.createContext({
     Blob, TextDecoder, FS_BROWSER_CONFIG: CONFIG_VALUE,
+    FS_BROWSER_MARKDOWN: { isMarkdown() { return false; } },
     location: { pathname: "/" + fileName, hash: "", replace(url) { downloads.push(url); } },
     document: {
       getElementById(id) {

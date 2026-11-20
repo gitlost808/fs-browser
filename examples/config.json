@@ -30,6 +30,7 @@
     "kts": "kotlin",
     "less": "less",
     "lua": "lua",
+    "markdown": "markdown",
     "md": "markdown",
     "nix": "nix",
     "patch": "diff",
