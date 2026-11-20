@@ -8,7 +8,6 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 VIEWER = ROOT / "dist"
-CONFIG = json.loads((ROOT / "examples/config.json").read_text())
 
 
 class FsBrowserTests(unittest.TestCase):
@@ -37,7 +36,7 @@ async function view(fileName, bytes) {
   }
   const code = element();
   const context = vm.createContext({
-    Blob, TextDecoder, FS_BROWSER_CONFIG: CONFIG_VALUE,
+    Blob, TextDecoder,
     FS_BROWSER_MARKDOWN: { isMarkdown() { return false; } },
     location: { pathname: "/" + fileName, hash: "", replace(url) { downloads.push(url); } },
     document: {
@@ -81,7 +80,7 @@ async function view(fileName, bytes) {
 '''
         result = subprocess.run(
             ["node", "-", str(VIEWER / "highlight.js")],
-            input=harness.replace("SOURCE", json.dumps(source)).replace("CONFIG_VALUE", json.dumps(CONFIG)),
+            input=harness.replace("SOURCE", json.dumps(source)),
             capture_output=True, text=True, timeout=20,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

@@ -7,41 +7,43 @@ READMEs, source highlighting, image previews, and raw/download links.
 
 Requires Node.js 24.15+, npm, and Python 3. Run `npm ci`, then `make test`
 or `make preview` (http://127.0.0.1:8088). Preview serves `examples/files`
-using `examples/config.json`; restart it after source changes.
+using the built release manifest; restart it after source changes.
 
 ## Build and release
 
 `npm run build` bundles into the ignored `dist/` directory. For deployment,
 run `bash deploy.sh /absolute/empty/staging`: it installs locked dependencies,
 builds with esbuild, and generates `contract.json`. The build needs npm registry
-access or a populated cache. Runtime configuration comes from the consumer.
+access or a populated cache. File-type mappings live in `src/file-types.json`
+and are bundled into the frontend and exported in the manifest.
 
 Infra pins a full commit SHA and publishes the static output. Pushing here
-does not deploy it; restoring the previous infra pin rolls back the release.
+does not deploy it. Rollback must use a compatible infra integration and pin.
 
 ## Markdown
 
 Directory listings render `README.md`, `README.markdown`, and extensionless
 `README`; `README.txt` stays plain text. Standalone `.md` and `.markdown` files
-render when mapped to `markdown` in the consumer's extension configuration.
-Matching is case-insensitive. README previews are limited to 64 KiB; files
+render using the release-owned mappings. Matching is case-insensitive.
+README previews are limited to 64 KiB; files
 over 1 MiB fall back to truncated source.
 
 Marked parses Markdown and DOMPurify sanitizes the HTML. Relative links/images
 resolve from the document directory; fenced code uses highlight.js. Raw and
 download links return the original bytes.
 
-## HTTP integration contract (version 1)
+## HTTP integration contract (version 2)
 
 - Serve the release's assets at `/.fs-viewer/`, with revalidation on every
   request. `index.html` and `listing.html` are internal rewrite targets served
   at the requested file or directory URL. Serve `404.html` with status 404
   at the missing URL. Do not change the file-share root to the asset root.
-- Supply `/.fs-viewer/config.js`, loaded before the frontend scripts:
-  `globalThis.FS_BROWSER_CONFIG = {"version":1,"extensions":{"py":"python"},"fileNames":{"Makefile":"makefile"}};`
-  Keys match case-insensitively; a value is a highlight.js language or list of
-  candidates. Use this same configuration to select highlighted URLs in Nginx.
-  Verify every selected language against the built `contract.json`.
+- Read `contract.json`: `{ "version": 2, "languages": [...], "extensions": {...},
+  "fileNames": {...} }`. Generate the server's viewer matching rules from these
+  mappings, escaping names as regex literals. Extension keys are lowercase
+  letters/digits; exact filenames also allow dots, underscores, and hyphens.
+  Values are supported language names or nonempty lists of candidates.
+  The frontend uses these same mappings; no runtime `config.js` is needed.
 - File `?raw` returns its bytes; `?download` returns those bytes as an
   attachment. Ordinary browser navigation to a configured source filename
   returns `index.html`, while other files retain normal browser handling.
@@ -56,6 +58,8 @@ download links return the original bytes.
 
 The asset prefix and query parameters form the current contract. Changes to
 them require a coordinated consumer update and a contract version change.
+Rollout or rollback across contract versions must pair the browser pin with
+the matching consumer integration.
 
 ## Dependencies and provenance
 

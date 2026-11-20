@@ -69,7 +69,6 @@ function settleNavigation() {
 
 const context = vm.createContext({
   document, window, history, Image: Element,
-  FS_BROWSER_CONFIG: require("../examples/config.json"),
   location: { pathname: "/", search: "", host: "files.example", get hash() { return hashes[position]; } },
   // Supply the loaded entries below, without network or production data.
   fetch: () => new Promise(() => {}),
