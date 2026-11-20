@@ -1,0 +1,115 @@
+header > a { color: var(--muted); }
+.wrap { max-width: 64rem; margin: 0 auto; padding: 1rem; }
+.toolbar { display: flex; flex-wrap: wrap; gap: .5rem .75rem; align-items: center; margin-bottom: .75rem; }
+.toolbar input {
+  flex: 0 1 18rem; min-width: 12rem; padding: .35rem .6rem; font: inherit; color: inherit;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+}
+.toolbar input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.summary { margin-left: auto; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.box { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.row {
+  display: grid; column-gap: .75rem; align-items: center; padding: .4rem .5rem .4rem .75rem;
+  grid-template-columns: 1.25rem minmax(0, 1fr) 5.5rem 8.5rem 2rem;
+  grid-template-areas: "icon name size mtime copy";
+}
+.head { background: var(--subtle); border-bottom: 1px solid var(--line); padding-block: .3rem; font-size: 12px; }
+.sort { padding: 0; font: inherit; color: var(--muted); background: none; border: 0; cursor: pointer; text-align: inherit; }
+.sort:hover, .sort[aria-pressed="true"] { color: var(--fg); }
+.sort[aria-pressed="true"] { font-weight: 600; }
+.sort[data-order="asc"]::after { content: " ↑"; }
+.sort[data-order="desc"]::after { content: " ↓"; }
+.sort[data-key="name"] { grid-area: name; }
+.sort[data-key="size"] { grid-area: size; text-align: right; }
+.sort[data-key="mtime"] { grid-area: mtime; }
+ul { margin: 0; padding: 0; list-style: none; }
+.entry { position: relative; }
+.entry + .entry { border-top: 1px solid var(--line); }
+.entry:hover, .entry:focus-within { background: var(--subtle); }
+.entry:has(.name:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.icon { grid-area: icon; color: var(--muted); }
+.entry[data-kind="folder"] .icon, .entry[data-kind="up"] .icon { color: var(--folder); }
+.entry[data-kind="folder"] .icon { fill: currentColor; fill-opacity: .2; }
+.name { grid-area: name; overflow-wrap: anywhere; text-decoration: none; }
+.name:hover { text-decoration: underline; }
+.name:focus-visible { outline: none; }
+/* The whole row opens the entry; the copy button sits above this. */
+.name::after { content: ""; position: absolute; inset: 0; }
+.meta { display: contents; color: var(--muted); font-variant-numeric: tabular-nums; }
+.size { grid-area: size; text-align: right; }
+.mtime { grid-area: mtime; white-space: nowrap; }
+.copy {
+  grid-area: copy; position: relative; z-index: 1; display: grid; place-items: center;
+  width: 2rem; height: 2rem; padding: 0; color: var(--muted); background: none;
+  border: 0; border-radius: 6px; cursor: pointer; opacity: 0;
+}
+.copy svg { width: 1rem; height: 1rem; }
+.copy:hover { color: var(--fg); background: var(--line); }
+.entry:hover .copy, .copy:focus-visible, .copy.done { opacity: 1; }
+.copy.done { color: var(--done); }
+@media (hover: none) { .copy { opacity: 1; } }
+.message { margin: 0; padding: 1.5rem 1rem; color: var(--muted); text-align: center; }
+.message a { color: var(--muted); }
+.readme { margin-top: 1rem; }
+.readme > h2 { margin: 0; padding: .45rem .75rem; font-size: 13px; background: var(--subtle); border-bottom: 1px solid var(--line); }
+.readme > pre {
+  margin: 0; padding: .75rem; white-space: pre-wrap; overflow-wrap: anywhere;
+  font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+/* Image preview: always dark, whatever the page's color scheme. */
+.preview {
+  width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
+  color: #e6edf3; background: #010409; color-scheme: dark;
+}
+.preview[open] { display: flex; flex-direction: column; }
+.preview::backdrop { background: none; }
+.preview-bar { display: flex; gap: 1rem; align-items: center; padding: .35rem .5rem .35rem 1rem; }
+.preview-bar a { color: #8d96a0; }
+.preview-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.preview-count { color: #8d96a0; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.preview button {
+  display: grid; place-items: center; padding: 0; color: inherit; background: none;
+  border: 0; border-radius: 50%; cursor: pointer;
+}
+.preview button:hover { background: rgb(255 255 255 / .12); }
+.preview-close { width: 2.25rem; height: 2.25rem; }
+.preview-stage { position: relative; flex: 1; min-height: 0; }
+.preview-stage img { position: absolute; inset: 0 3.5rem 1rem; max-width: calc(100% - 7rem); max-height: calc(100% - 1rem); margin: auto; }
+.preview-stage[data-state="error"] img { visibility: hidden; }
+.preview-status { position: absolute; inset: 45% 0 auto; margin: 0; color: #8d96a0; text-align: center; }
+.preview-stage[data-state="loaded"] .preview-status { display: none; }
+/* A whole side of the stage steps, over the image's edge too; the round
+   mark only shows where. */
+.preview .preview-step { position: absolute; inset-block: 0; width: max(4rem, 25%); padding-inline: .5rem; border-radius: 0; }
+.preview .preview-step[data-step="-1"] { left: 0; justify-items: start; }
+.preview .preview-step[data-step="1"] { right: 0; justify-items: end; }
+.preview .preview-step:hover { background: none; }
+.preview-step svg { box-sizing: content-box; width: 1.5rem; height: 1.5rem; padding: .75rem; border-radius: 50%; background: rgb(255 255 255 / .08); }
+/* Touch screens would keep this after a tap. */
+@media (hover: hover) {
+  .preview .preview-step[data-step="-1"]:hover { background: linear-gradient(to right, rgb(255 255 255 / .07), transparent); }
+  .preview .preview-step[data-step="1"]:hover { background: linear-gradient(to left, rgb(255 255 255 / .07), transparent); }
+  .preview-step:hover svg { background: rgb(255 255 255 / .2); }
+}
+.preview-step:focus-visible { outline: none; }
+.preview-step:focus-visible svg { outline: 2px solid #4493f8; }
+@media (max-width: 40rem) {
+  header { padding-inline: .75rem; }
+  .wrap { padding: .75rem .5rem; }
+  .toolbar input { flex-grow: 1; }
+  .head { grid-template-columns: repeat(3, auto); grid-template-areas: none; justify-content: start; gap: 1.25rem; }
+  .head .sort { grid-area: auto; }
+  .entry {
+    grid-template-columns: 1.5rem minmax(0, 1fr) 2.25rem; padding-block: .55rem;
+    grid-template-areas: "icon name copy" "icon meta copy";
+  }
+  .entry .icon { width: 1.5rem; height: 1.5rem; }
+  .meta { grid-area: meta; display: flex; gap: .4rem; font-size: 12px; }
+  .size { text-align: left; }
+  .size:empty { display: none; }
+  .size::after { content: "·"; margin-left: .4rem; }
+  .copy { width: 2.25rem; height: 2.25rem; }
+  /* The image takes the full width under the step sides. */
+  .preview-stage img { inset: 0 0 .5rem; max-width: 100%; max-height: calc(100% - .5rem); }
+  .preview-step svg { background: rgb(0 0 0 / .45); }
+}

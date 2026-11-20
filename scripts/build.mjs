@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import hljs from "../src/highlighter.js";
+import { buildPages } from "./pages.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const output = process.argv[2] ? path.resolve(process.argv[2]) : path.join(root, "dist");
@@ -18,15 +19,16 @@ if (process.argv[2]) {
 
 await build({
   absWorkingDir: root,
-  entryPoints: {
-    viewer: "src/viewer.js",
-    markdown: "src/markdown-browser.js",
-    listing: "src/listing.js",
-    "not-found": "src/not-found.js",
-    highlight: "src/highlight-browser.js",
-    "github.min": "node_modules/highlight.js/styles/github.css",
-    "github-dark.min": "node_modules/highlight.js/styles/github-dark.css",
-  },
+  entryPoints: [
+    ...["viewer", "listing", "not-found"].flatMap(name => [
+      { in: `src/${name}.js`, out: name },
+      { in: `src/styles/${name}.css`, out: name },
+    ]),
+    { in: "src/styles/common.css", out: "common" },
+    { in: "src/styles/document.css", out: "document" },
+    { in: "src/markdown-browser.js", out: "markdown" },
+    { in: "src/highlight-browser.js", out: "highlight" },
+  ],
   outdir: output,
   bundle: true,
   minify: true,
@@ -35,7 +37,7 @@ await build({
   target: "es2020",
   legalComments: "linked",
 });
-fs.cpSync(path.join(root, "public"), output, { recursive: true });
+buildPages(output);
 fs.copyFileSync(path.join(root, "node_modules/highlight.js/LICENSE"), path.join(output, "highlight.js.LICENSE"));
 for (const name of ["marked", "dompurify"]) {
   fs.copyFileSync(path.join(root, "node_modules", name, "LICENSE"), path.join(output, `${name}.LICENSE`));

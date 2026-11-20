@@ -32,6 +32,7 @@ async function view(fileName, bytes) {
     return {
       innerHTML: "", removed: false, classList: { add() {} },
       remove() { this.removed = true; }, append() {},
+      replaceChildren(...content) { this.textContent = content.join(""); },
     };
   }
   const code = element();

@@ -1,0 +1,19 @@
+  <header>
+    {{breadcrumbs}}
+  </header>
+  <main>
+    <p class="code">404</p>
+    <h1>Not found</h1>
+    <p id="explanation">Nothing is shared at this address. The file may have been moved, renamed or deleted, or the link may be mistyped.</p>
+    <p id="nearest-note" hidden></p>
+    <div class="actions">
+      <a class="button primary" id="nearest" href="/"><svg aria-hidden="true"><use href="#i-home"></use></svg><span>Browse all files</span></a>
+      <a class="button" id="root" href="/" hidden><svg aria-hidden="true"><use href="#i-home"></use></svg><span>All files</span></a>
+    </div>
+    <section class="suggestions" id="suggestions" hidden>
+      <h2>Did you mean</h2>
+      <ul id="suggestion-list"></ul>
+    </section>
+  </main>
+
+  {{icons}}
