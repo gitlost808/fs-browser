@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -15,6 +16,14 @@ class BuildTests(unittest.TestCase):
             for name in ("index.html", "listing.html", "404.html"):
                 self.assertTrue((output / name).stat().st_size)
                 self.assertNotIn("{{", (output / name).read_text())
+            # Pages are served at arbitrary file paths; assets must resolve
+            # through the reserved prefix, with runtime config supplied by infra.
+            for page in output.glob("*.html"):
+                for name in re.findall(r'(?:src|href)="/\.fs-viewer/([^"?]+)"', page.read_text()):
+                    if name != "config.js":
+                        self.assertTrue((output / name).is_file(), name)
+            self.assertTrue((output / "highlight.js.LICENSE").stat().st_size)
+            self.assertFalse(any(path.is_symlink() for path in output.rglob("*")))
             self.assertFalse((output / "config.js").exists())
             contract = json.loads((output / "contract.json").read_text())
             self.assertEqual(contract["version"], 1)

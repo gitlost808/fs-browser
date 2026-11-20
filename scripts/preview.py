@@ -26,7 +26,7 @@ class Preview(SimpleHTTPRequestHandler):
         self.wfile.write(data)
 
     def page(self, name, status=200):
-        self.reply((ROOT / "public" / name).read_bytes(), "text/html; charset=utf-8", status)
+        self.reply((ROOT / "dist" / name).read_bytes(), "text/html; charset=utf-8", status)
 
     def do_GET(self):
         url = urlsplit(self.path)
@@ -38,7 +38,7 @@ class Preview(SimpleHTTPRequestHandler):
             return
         if path.startswith("/.fs-viewer/"):
             name = path.removeprefix("/.fs-viewer/")
-            asset = ROOT / "public" / name
+            asset = ROOT / "dist" / name
             if name != Path(name).name or not asset.is_file():
                 self.page("404.html", 404)
             else:
