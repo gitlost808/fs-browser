@@ -8,7 +8,7 @@ Dependencies are installed only when building.
 
 ## Development
 
-Use Node.js 24+ (matching CI), npm, and Python 3. Run `npm ci` once,
+Use Node.js 24.15+ (matching CI), npm, and Python 3. Run `npm ci` once,
 then `make test` or `make preview`. For preview, open
 http://127.0.0.1:8088. The preview server uses only `examples/files` and
 emulates the HTTP contract below; it does not emulate production authentication.
@@ -20,7 +20,7 @@ Run `bash deploy.sh /absolute/path/to/empty-staging-directory`. The build
 runs `npm ci` from the committed `package-lock.json`, bundles `src/` with
 esbuild, copies the HTML in `public/`, and generates `contract.json` containing
 contract version 1 and the languages registered by `src/highlighter.js`.
-The build machine needs Node.js 24+, npm, and registry access (or a populated
+The build machine needs Node.js 24.15+, npm, and registry access (or a populated
 npm cache), including development dependencies for esbuild. The release script explicitly
 includes those dependencies and disables dependency lifecycle scripts. Site configuration
 is supplied by the consumer and is deliberately excluded from the output.
@@ -69,25 +69,35 @@ in `gitlost808/infra` using `git subtree split`; frontend tests were moved
 from that repository in the extraction commit.
 
 `highlight.js` is an npm dependency (BSD-3-Clause); esbuild is a build-only
-dependency (MIT). The common language set plus nginx, dockerfile, nix, and
+dependency (MIT). jsdom is used only for frontend tests. The common language set plus nginx, dockerfile, nix, and
 django is shared by the browser bundle and contract generation. Themes come
 from the same locked highlight.js version. Releases include its license and
 esbuild's extracted legal comments. Update dependencies with npm, commit both
 package manifests, and run `make test` before changing the infra pin.
 
-## Markdown rendering follow-up
+## Markdown rendering
 
-This change establishes the build workflow; README display remains plain text.
-A follow-up can import a Markdown parser and an HTML sanitizer from npm into
-shared rendering code used by directory READMEs and the file viewer. Sanitize
-parser output before inserting HTML: shared files must be treated as untrusted
-content. Cover scripts, event handlers, unsafe link schemes, and raw HTML in
-regression tests. Resolve relative links/images against the displayed file's
-directory, preserve raw/download links and size limits, and use the existing
-highlighter for fenced code without broadening its language set implicitly.
+Directory listings render `README.md`, `README.markdown`, and extensionless
+`README` as Markdown (case-insensitive). `README.txt` stays plain text. The
+64 KiB preview limit applies both to the listing size and the streamed response.
+Standalone `.md` and `.markdown` files render in the file viewer when their
+extensions are mapped to `markdown` in the consumer's runtime configuration.
+Files larger than 1 MiB retain the existing truncated source view.
 
-Start with directory README rendering, which needs no new route. Rendering
-standalone `.md` files also needs a coordinated infra change to select those
-URLs and advertise any new runtime setting in the integration contract. Keep
-that behavior separate from this dependency/build migration so rollout and
-rollback remain easy to review.
+The shared renderer uses Marked (MIT) and DOMPurify (Apache-2.0 OR MPL-2.0),
+installed from the npm lockfile. Rendered HTML is restricted to document
+formatting: scripts, event handlers, forms, embeds, inline styles, and SVG/MathML
+markup are removed. Links permit HTTP(S) and mailto; images permit HTTP(S).
+Relative URLs resolve from the Markdown file's directory, and fragment links
+point to generated heading IDs on the displayed page. Fenced code uses the
+existing highlighter for supported languages; unknown languages stay plain.
+Raw and download links retain the original file bytes.
+
+`npm test` also exercises the built bundles in jsdom, covering both page types,
+HTML/URL sanitization, relative URLs, code fences, and response size limits.
+jsdom is a test-only dependency and is excluded from browser bundles.
+
+The integration remains contract version 1: there are no new endpoints or
+runtime settings. Consumers must include `md: markdown` and optionally
+`markdown: markdown` in the existing extension mapping and use the same mapping
+for their server's viewer rewrites.

@@ -1,0 +1,17 @@
+.markdown-body { display: block; padding: 1rem; min-width: 0; overflow-wrap: anywhere; line-height: 1.65; }
+.markdown-body > :first-child { margin-top: 0; }
+.markdown-body > :last-child { margin-bottom: 0; }
+.markdown-body h1, .markdown-body h2 { padding-bottom: .3em; border-bottom: 1px solid var(--line); }
+.markdown-body h1 { font-size: 2em; }
+.markdown-body h2 { font-size: 1.5em; }
+.markdown-body a { color: light-dark(#0969da, #58a6ff); }
+.markdown-body img { max-width: 100%; height: auto; }
+.markdown-body pre { margin: 1em 0; padding: .8rem; overflow: auto; white-space: pre; background: light-dark(#f6f8fa, #161b22); }
+.markdown-body code { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.markdown-body :not(pre) > code { padding: .15em .3em; border-radius: .25em; background: light-dark(#eff1f3, #21262d); }
+.markdown-body pre code.hljs { padding: 0; background: none; }
+.markdown-body blockquote { margin-left: 0; padding-left: 1em; border-left: .25em solid var(--line); color: var(--muted); }
+.markdown-body table { display: block; max-width: 100%; overflow: auto; border-collapse: collapse; }
+.markdown-body th, .markdown-body td { padding: .4em .8em; border: 1px solid var(--line); }
+.markdown-body hr { border: 0; border-top: 1px solid var(--line); }
+#main.markdown-body { max-width: 64rem; margin: auto; }
