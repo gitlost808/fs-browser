@@ -3,13 +3,12 @@ import fs from "node:fs";
 import test from "node:test";
 import { JSDOM } from "jsdom";
 import { readBytes, readLimitedText } from "../src/http.js";
+import { languageFor } from "../src/files.js";
 
-const config = JSON.parse(fs.readFileSync(new URL("../examples/config.json", import.meta.url)));
 const asset = name => fs.readFileSync(new URL(`../dist/${name}`, import.meta.url), "utf8");
 function browser(page = "index.html", pathname = "/docs/guide.md") {
   const dom = new JSDOM(asset(page), { url: "https://files.example" + pathname, runScripts: "outside-only" });
   const window = dom.window;
-  window.FS_BROWSER_CONFIG = config;
   // jsdom does not implement the native image-preview dialog methods.
   window.HTMLDialogElement.prototype.close = function () { this.open = false; };
   window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
@@ -192,5 +191,16 @@ test("404 shares breadcrumbs and skips protected or malformed ancestor listings"
         assert.ok(window.document.getElementById(use.getAttribute("href").slice(1)));
       }
     } finally { window.close(); }
+  }
+});
+
+test("the frontend and release manifest use identical case-insensitive file-type mappings", () => {
+  const manifest = JSON.parse(asset("contract.json"));
+  for (const [extension, selection] of Object.entries(manifest.extensions)) {
+    assert.deepEqual(languageFor("example." + extension.toUpperCase()), selection);
+  }
+  for (const [name, selection] of Object.entries(manifest.fileNames)) {
+    assert.deepEqual(languageFor(name.toLowerCase()), selection);
+    assert.deepEqual(languageFor(name.toUpperCase()), selection);
   }
 });

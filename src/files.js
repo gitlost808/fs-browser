@@ -1,3 +1,5 @@
+import fileTypes from "./file-types.json" with { type: "json" };
+
 // File names need not be UTF-8; retain invalid components percent-encoded.
 export function decode(component) {
   try {
@@ -13,9 +15,9 @@ export function extensionOf(name) {
 }
 
 // Match the same extension/exact-name mappings as Nginx.
-export function languageFor(name, config = globalThis.FS_BROWSER_CONFIG) {
+export function languageFor(name) {
   const extension = extensionOf(name);
-  if (Object.hasOwn(config.extensions, extension)) return config.extensions[extension];
-  const key = Object.keys(config.fileNames).find(key => key.toLowerCase() === name.toLowerCase());
-  return config.fileNames[key];
+  if (Object.hasOwn(fileTypes.extensions, extension)) return fileTypes.extensions[extension];
+  const key = Object.keys(fileTypes.fileNames).find(key => key.toLowerCase() === name.toLowerCase());
+  return fileTypes.fileNames[key];
 }

@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ROOT / "examples/files"
-CONFIG = json.loads((ROOT / "examples/config.json").read_text())
+CONTRACT = json.loads((ROOT / "dist/contract.json").read_text())
 
 
 class Preview(SimpleHTTPRequestHandler):
@@ -32,10 +32,6 @@ class Preview(SimpleHTTPRequestHandler):
         url = urlsplit(self.path)
         query = parse_qs(url.query, keep_blank_values=True)
         path = unquote(url.path)
-        if path == "/.fs-viewer/config.js":
-            self.reply(("globalThis.FS_BROWSER_CONFIG = " + json.dumps(CONFIG) + ";\n").encode(),
-                       "text/javascript")
-            return
         if path.startswith("/.fs-viewer/"):
             name = path.removeprefix("/.fs-viewer/")
             asset = ROOT / "dist" / name
@@ -67,8 +63,8 @@ class Preview(SimpleHTTPRequestHandler):
             else:
                 super().do_GET()
             return
-        extensions = CONFIG["extensions"]
-        names = {name.lower() for name in CONFIG["fileNames"]}
+        extensions = CONTRACT["extensions"]
+        names = {name.lower() for name in CONTRACT["fileNames"]}
         highlighted = target.suffix.lower().lstrip(".") in extensions or target.name.lower() in names
         if browser and highlighted and "raw" not in query and "download" not in query:
             self.page("index.html")

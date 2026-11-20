@@ -23,7 +23,7 @@ export function buildPages(output) {
       entry,
       head: document ? '<link rel="stylesheet" href="/.fs-viewer/document.css">' : '<meta name="robots" content="noindex">',
       body: render(read(name), partials),
-      scripts: document ? ["highlight", "markdown", "config"].map(name =>
+      scripts: document ? ["highlight", "markdown"].map(name =>
         `  <script src="/.fs-viewer/${name}.js"></script>`).join("\n") : "",
     }));
   }
