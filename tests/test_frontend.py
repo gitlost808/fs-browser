@@ -7,7 +7,7 @@ import subprocess
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-VIEWER = ROOT / "public"
+VIEWER = ROOT / "dist"
 CONFIG = json.loads((ROOT / "examples/config.json").read_text())
 
 
@@ -18,7 +18,7 @@ class FsBrowserTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which("node"), "Node.js required to execute the viewer")
     def test_viewer_downloads_binary_source_and_keeps_text_inline(self):
         page = self.render(VIEWER / "index.html")
-        source = re.search(r"<script>([\s\S]*?)</script>", page).group(1)
+        source = (VIEWER / "viewer.js").read_text()
         harness = r'''
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -52,7 +52,11 @@ async function view(fileName, bytes) {
     },
   });
   vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), context);
-  await vm.runInContext(source, context);
+  vm.runInContext(source, context);
+  const deadline = Date.now() + 2000;
+  while (!downloads.length && !code.innerHTML && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
   return { downloads, elements, code };
 }
 
@@ -74,7 +78,7 @@ async function view(fileName, bytes) {
 })().catch(error => { console.error(error); process.exitCode = 1; });
 '''
         result = subprocess.run(
-            ["node", "-", str(VIEWER / "highlight.min.js")],
+            ["node", "-", str(VIEWER / "highlight.js")],
             input=harness.replace("SOURCE", json.dumps(source)).replace("CONFIG_VALUE", json.dumps(CONFIG)),
             capture_output=True, text=True, timeout=20,
         )
@@ -84,7 +88,7 @@ async function view(fileName, bytes) {
     @unittest.skipUnless(shutil.which("node"), "Node.js required to execute the listing")
     def test_image_preview_browser_history(self):
         page = self.render(VIEWER / "listing.html")
-        source = re.search(r"<script>([\s\S]*?)</script>", page).group(1)
+        source = (ROOT / "src/listing.js").read_text()
         result = subprocess.run(
             ["node", str(ROOT / "tests/fs-viewer-history.cjs")],
             input=source, capture_output=True, text=True, timeout=20,
@@ -93,7 +97,7 @@ async function view(fileName, bytes) {
 
 
     def test_listing_previews_only_image_files(self):
-        rendered = self.render(VIEWER / "listing.html")
+        rendered = (ROOT / "src/listing.js").read_text()
         previewable = json.loads(re.search(r"const PREVIEWABLE = (\[.*\]);", rendered).group(1))
         images = json.loads(re.search(r"^\s*image: (\[.*\]),$", rendered, re.M).group(1))
         self.assertTrue(previewable)

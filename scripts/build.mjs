@@ -1,22 +1,42 @@
 import fs from "node:fs";
 import path from "node:path";
-import vm from "node:vm";
 import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
+import hljs from "../src/highlighter.js";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const output = process.argv[2];
-if (!output || !fs.statSync(output).isDirectory() || fs.readdirSync(output).length) {
-  throw new Error("Usage: node scripts/build.mjs EMPTY_STAGING_DIRECTORY");
+const output = process.argv[2] ? path.resolve(process.argv[2]) : path.join(root, "dist");
+if (process.argv[2]) {
+  // Publisher staging must already exist and be empty; never clear it ourselves.
+  if (!fs.statSync(output).isDirectory() || fs.readdirSync(output).length) {
+    throw new Error("Usage: node scripts/build.mjs EMPTY_STAGING_DIRECTORY");
+  }
+} else {
+  fs.rmSync(output, { recursive: true, force: true });
+  fs.mkdirSync(output);
 }
 
-const context = vm.createContext({});
-for (const name of ["highlight", "nginx", "dockerfile", "nix", "django"]) {
-  vm.runInContext(fs.readFileSync(path.join(root, "public", `${name}.min.js`), "utf8"), context);
-}
-for (const name of fs.readdirSync(path.join(root, "public"))) {
-  fs.copyFileSync(path.join(root, "public", name), path.join(output, name));
-}
+await build({
+  absWorkingDir: root,
+  entryPoints: {
+    viewer: "src/viewer.js",
+    listing: "src/listing.js",
+    "not-found": "src/not-found.js",
+    highlight: "src/highlight-browser.js",
+    "github.min": "node_modules/highlight.js/styles/github.css",
+    "github-dark.min": "node_modules/highlight.js/styles/github-dark.css",
+  },
+  outdir: output,
+  bundle: true,
+  minify: true,
+  format: "iife",
+  platform: "browser",
+  target: "es2020",
+  legalComments: "linked",
+});
+fs.cpSync(path.join(root, "public"), output, { recursive: true });
+fs.copyFileSync(path.join(root, "node_modules/highlight.js/LICENSE"), path.join(output, "highlight.js.LICENSE"));
 fs.writeFileSync(path.join(output, "contract.json"), JSON.stringify({
   version: 1,
-  languages: vm.runInContext("hljs.listLanguages()", context).sort(),
+  languages: hljs.listLanguages().sort(),
 }) + "\n");

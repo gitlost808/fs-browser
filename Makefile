@@ -1,7 +1,10 @@
-.PHONY: test preview
+.PHONY: build test preview
+
+build:
+	npm run build
 
 test:
-	python3 -m unittest discover -s tests -v
+	npm test
 
 preview:
-	python3 scripts/preview.py
+	npm run preview
