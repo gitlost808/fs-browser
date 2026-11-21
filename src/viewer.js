@@ -1,5 +1,5 @@
 import { decode, languageFor } from "./files.js";
-import { showNotice } from "./dom.js";
+import { showNotice, renderBreadcrumbs } from "./dom.js";
 import { readBytes } from "./http.js";
 
 // Only this much is read, so a large or mislabeled file never downloads in
@@ -11,7 +11,7 @@ const name = decode(path.split("/").pop());
 const rawUrl = path + "?raw";
 const downloadUrl = path + "?download";
 document.title = name + " · " + location.host;
-document.getElementById("path").textContent = decode(path);
+renderBreadcrumbs(document.getElementById("path"), path, location.host);
 
 async function readRaw() {
   const response = await fetch(rawUrl);

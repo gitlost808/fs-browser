@@ -165,6 +165,22 @@ test("shared breadcrumbs preserve encoded URLs and tolerate invalid UTF-8 names"
   } finally { window.close(); }
 });
 
+test("file viewer breadcrumbs link home and to every parent directory", () => {
+  const window = browser("index.html", "/docs%20and%20files/sub/guide.md");
+  try {
+    window.fetch = async () => new Response("# Guide");
+    window.eval(asset("viewer.js"));
+    const nav = window.document.getElementById("path");
+    assert.deepEqual([...nav.querySelectorAll("a")].map(a => [a.textContent, a.getAttribute("href")]), [
+      ["files.example", "/"],
+      ["docs and files", "/docs%20and%20files/"],
+      ["sub", "/docs%20and%20files/sub/"],
+    ]);
+    assert.equal(nav.lastElementChild.textContent, "guide.md");
+    assert.equal(nav.lastElementChild.getAttribute("aria-current"), "page");
+  } finally { window.close(); }
+});
+
 test("404 shares breadcrumbs and skips protected or malformed ancestor listings", async () => {
   for (const failure of ["protected", "malformed"]) {
     const window = browser("404.html", "/docs/privat/README.md");
