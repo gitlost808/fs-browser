@@ -30,7 +30,7 @@ async function view(fileName, bytes) {
   function element() {
     return {
       innerHTML: "", removed: false, classList: { add() {} },
-      remove() { this.removed = true; }, append() {},
+      remove() { this.removed = true; }, append() {}, setAttribute() {},
       replaceChildren(...content) { this.textContent = content.join(""); },
     };
   }
